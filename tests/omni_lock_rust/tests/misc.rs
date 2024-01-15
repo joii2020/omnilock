@@ -2003,7 +2003,6 @@ pub fn assert_script_error(err: Error, err_code: i8) {
 pub fn gen_consensus() -> Consensus {
     let hardfork_switch = HardForkSwitch::new_without_any_enabled()
         .as_builder()
-        .rfc_0232(200)
         .build()
         .unwrap();
     ConsensusBuilder::default()
@@ -2039,4 +2038,47 @@ pub fn calculate_ripemd160(buf: &[u8]) -> [u8; 20] {
 
 pub fn bitcoin_hash160(buf: &[u8]) -> [u8; 20] {
     calculate_ripemd160(&calculate_sha256(buf))
+}
+
+#[test]
+fn test_gen_sign_msg() {
+    // generate_signing_message_hash(H256::from([1u8;32]), tx);
+}
+
+fn generate_signing_message_hash(
+    message: &Option<H256>,
+    tx: &TransactionView,
+    resolved_inputs: &omni_lock_test::schemas_test::basic::ResolvedInputs,
+) -> [u8; 32] {
+    // message
+    let mut hasher = match message {
+        Some(m) => {
+            let mut hasher = omni_lock_test::blake2b::new_sighash_all_blake2b();
+            hasher.update(m.as_slice());
+            hasher
+        }
+        None => omni_lock_test::blake2b::new_sighash_all_only_blake2b(),
+    };
+    // tx hash
+    hasher.update(tx.hash().as_slice());
+    // inputs cell and data
+    let inputs_len = tx.inputs().len();
+    debug_assert!(inputs_len == resolved_inputs.outputs().len());
+    debug_assert!(inputs_len == resolved_inputs.outputs_data().len());
+    for i in 0..inputs_len {
+        let input_cell = resolved_inputs.outputs().get(i).unwrap();
+        hasher.update(&input_cell.as_slice());
+        let input_cell_data = resolved_inputs.outputs_data().get(i).unwrap();
+        hasher.update(&(input_cell_data.len() as u32).to_le_bytes());
+        hasher.update(&input_cell_data.raw_data());
+    }
+    // extra witnesses
+    for witness in tx.witnesses().into_iter().skip(inputs_len) {
+        hasher.update(&(witness.len() as u32).to_le_bytes());
+        hasher.update(&witness.raw_data());
+    }
+
+    let mut result = [0u8; 32];
+    hasher.finalize(&mut result);
+    result
 }
