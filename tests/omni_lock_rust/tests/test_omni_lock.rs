@@ -3,6 +3,10 @@
 
 mod misc;
 
+use std::fs::File;
+use std::io::Read;
+
+use blake2b_rs::{Blake2b, Blake2bBuilder};
 use ckb_chain_spec::consensus::ConsensusBuilder;
 use ckb_crypto::secp::Generator;
 use ckb_error::assert_error_eq;
@@ -729,4 +733,33 @@ fn test_eth_displaying_unlock() {
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
+}
+
+// this test can fail during development
+#[test]
+fn test_binary_unchanged() {
+    let mut buf = [0u8; 8 * 1024];
+    // build hash
+    let mut blake2b = Blake2bBuilder::new(32)
+        .personal(b"ckb-default-hash")
+        .build();
+
+    let mut fd = File::open("../../build/omni_lock").expect("open file");
+    loop {
+        let read_bytes = fd.read(&mut buf).expect("read file");
+        if read_bytes > 0 {
+            blake2b.update(&buf[..read_bytes]);
+        } else {
+            break;
+        }
+    }
+
+    let mut hash = [0u8; 32];
+    blake2b.finalize(&mut hash);
+
+    let actual_hash = faster_hex::hex_string(&hash).unwrap();
+    assert_eq!(
+        "286bf868065ace7e293f08cb8117afc3412875ca7e1a71ebf96f77cc42df5061",
+        &actual_hash
+    );
 }

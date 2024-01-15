@@ -1,5 +1,6 @@
 // uncomment to enable printf in CKB-VM
-// #define CKB_C_STDLIB_PRINTF
+#define CKB_C_STDLIB_PRINTF
+#define CKB_C_STDLIB_PRINTF_BUFFER_SIZE 1024
 
 // it's used by blockchain-api2.h, the behavior when panic
 #ifndef MOL2_EXIT
@@ -39,6 +40,7 @@ int ckb_exit(signed char);
 #include "omni_lock_acp.h"
 #include "omni_lock_time_lock.h"
 #include "omni_lock_supply.h"
+#include "cobuild.h"
 
 // clang-format on
 
@@ -313,7 +315,7 @@ exit:
   return err;
 }
 
-int parse_witness_lock(WitnessLockType *witness_lock) {
+int parse_witness_lock(WitnessLockType *witness_lock, mol2_cursor_t *seal) {
   int err = 0;
   witness_lock->has_signature = false;
   witness_lock->has_identity = false;
@@ -332,7 +334,12 @@ int parse_witness_lock(WitnessLockType *witness_lock) {
   BytesOptType mol_lock = witness_args.t->lock(&witness_args);
   if (mol_lock.t->is_none(&mol_lock)) return err;
 
-  mol2_cursor_t mol_lock_bytes = mol_lock.t->unwrap(&mol_lock);
+  mol2_cursor_t mol_lock_bytes = {0};
+  if (seal) {
+    mol_lock_bytes = *seal;
+  } else {
+    mol_lock_bytes = mol_lock.t->unwrap(&mol_lock);
+  }
   // convert Bytes to OmniLockWitnessLock
   OmniLockWitnessLockType mol_witness_lock =
       make_OmniLockWitnessLock(&mol_lock_bytes);
@@ -396,7 +403,18 @@ int main() {
   // args (args.id)
   CkbIdentityType identity = {0};
 
-  err = parse_witness_lock(&witness_lock);
+  mol2_cursor_t seal = {0};
+  /*
+   * When it fails, WitnessArgs is used. No cobuild enabled.
+   */
+  err = ckb_parse_message(g_cobuild_signing_message_hash, &seal);
+  if (err) {
+    g_cobuild_enabled = false;
+    err = parse_witness_lock(&witness_lock, NULL);
+  } else {
+    g_cobuild_enabled = true;
+    err = parse_witness_lock(&witness_lock, &seal);
+  }
   CHECK(err);
 
   err = parse_args(&args);

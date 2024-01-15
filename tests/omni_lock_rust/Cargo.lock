@@ -868,7 +868,6 @@ dependencies = [
  "faster-hex 0.3.1",
  "gdb-remote-protocol",
  "hex",
- "includedir_codegen",
  "lazy_static",
  "openssl",
  "rand 0.6.5",
