@@ -11,18 +11,18 @@ use ckb_chain_spec::consensus::ConsensusBuilder;
 use ckb_crypto::secp::Generator;
 use ckb_error::assert_error_eq;
 use ckb_script::{ScriptError, TransactionScriptsVerifier, TxVerifyEnv};
+use ckb_types::core::hardfork::HardForks;
 use ckb_types::{
     bytes::Bytes,
     bytes::BytesMut,
-    core::{
-        cell::ResolvedTransaction, hardfork::HardForkSwitch, EpochNumberWithFraction, HeaderView,
-    },
+    core::{cell::ResolvedTransaction, EpochNumberWithFraction, HeaderView},
     packed::WitnessArgs,
     prelude::*,
     H256,
 };
 use lazy_static::lazy_static;
 use misc::*;
+use std::sync::Arc;
 
 //
 // owner lock section
@@ -39,12 +39,9 @@ fn test_simple_owner_lock() {
 
     // For ckb 0.40.0
     // let mut verifier =
-    //     TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
+    //     TransactionScriptsVerifier::new(&resolved_tx, data_loader);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -62,10 +59,7 @@ fn test_owner_lock_without_witness() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -83,10 +77,7 @@ fn test_simple_owner_lock_mismatched() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -104,10 +95,7 @@ fn test_owner_lock_on_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -126,10 +114,7 @@ fn test_owner_lock_on_wl_without_witness() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -147,10 +132,7 @@ fn test_owner_lock_not_on_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -170,10 +152,7 @@ fn test_owner_lock_no_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -191,10 +170,7 @@ fn test_owner_lock_on_bl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -212,10 +188,7 @@ fn test_owner_lock_emergency_halt_mode() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -237,10 +210,7 @@ fn test_pubkey_hash_on_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -259,10 +229,7 @@ fn test_pubkey_hash_without_omni_identity() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -281,10 +248,7 @@ fn test_pubkey_hash_on_wl_without_witness() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
 
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
@@ -302,11 +266,7 @@ fn test_pubkey_hash_not_on_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert_script_error(verify_result.unwrap_err(), ERROR_NOT_ON_WHITE_LIST)
@@ -325,11 +285,7 @@ fn test_pubkey_hash_no_wl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert_script_error(verify_result.unwrap_err(), ERROR_NO_WHITE_LIST)
@@ -346,11 +302,7 @@ fn test_pubkey_hash_on_bl() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert_script_error(verify_result.unwrap_err(), ERROR_ON_BLACK_LIST)
@@ -367,11 +319,7 @@ fn test_pubkey_hash_emergency_halt_mode() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert_script_error(verify_result.unwrap_err(), ERROR_RCE_EMERGENCY_HALT)
@@ -388,10 +336,7 @@ fn test_rsa_via_dl_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -409,10 +354,7 @@ fn test_rsa_via_dl_wrong_sig() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert_script_error(verify_result.unwrap_err(), ERROR_RSA_VERIFY_FAILED);
@@ -432,10 +374,7 @@ fn test_rsa_via_dl_unlock_with_time_lock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -455,10 +394,7 @@ fn test_rsa_via_dl_unlock_with_time_lock_failed() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
 
@@ -478,10 +414,7 @@ fn test_iso9796_2_batch_via_dl_unlock_failed() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = gen_consensus();
-    let tx_env = gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert!(verify_result.is_err());
@@ -498,11 +431,7 @@ fn test_eth_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -521,11 +450,7 @@ fn test_btc_success(vtype: u8) {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -544,11 +469,7 @@ fn test_btc_err_pubkey(vtype: u8) {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert!(verify_result.is_err());
@@ -579,11 +500,7 @@ fn test_dogecoin_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -602,11 +519,7 @@ fn test_dogecoin_err_pubkey() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert!(verify_result.is_err())
@@ -624,11 +537,7 @@ fn test_eos_success(vtype: u8) {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -647,11 +556,7 @@ fn test_eos_err_pubkey(vtype: u8) {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert!(verify_result.is_err());
@@ -680,11 +585,7 @@ fn test_tron_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -703,11 +604,7 @@ fn test_tron_err_pubkey() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     assert!(verify_result.is_err());
@@ -725,11 +622,7 @@ fn test_eth_displaying_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
-    let consensus = misc::gen_consensus();
-    let tx_env = misc::gen_tx_env();
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_env);
-
+    let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -757,7 +650,7 @@ fn test_binary_unchanged() {
     let mut hash = [0u8; 32];
     blake2b.finalize(&mut hash);
 
-    let actual_hash = faster_hex::hex_string(&hash).unwrap();
+    let actual_hash = faster_hex::hex_string(&hash);
     assert_eq!(
         "1c18675ce5fad6d61c0dde08c59c7612648012aa88ac100949b579e47df69ab3",
         &actual_hash

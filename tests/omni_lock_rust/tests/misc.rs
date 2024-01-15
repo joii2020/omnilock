@@ -6,18 +6,16 @@ use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use ckb_chain_spec::consensus::{Consensus, ConsensusBuilder};
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::Error;
 use ckb_hash::{Blake2b, Blake2bBuilder};
 use ckb_script::TxVerifyEnv;
-use ckb_traits::{CellDataProvider, HeaderProvider};
+use ckb_traits::{CellDataProvider, ExtensionProvider, HeaderProvider};
 use ckb_types::bytes::{BufMut, BytesMut};
 use ckb_types::{
     bytes::Bytes,
     core::{
         cell::{CellMeta, CellMetaBuilder, ResolvedTransaction},
-        hardfork::HardForkSwitch,
         Capacity, DepType, EpochNumberWithFraction, HeaderView, ScriptHashType, TransactionBuilder,
         TransactionView,
     },
@@ -39,12 +37,16 @@ use sparse_merkle_tree::default_store::DefaultStore;
 use sparse_merkle_tree::traits::Hasher;
 use sparse_merkle_tree::{SparseMerkleTree, H256};
 
+use ckb_chain_spec::consensus::ConsensusBuilder;
+use ckb_script::TransactionScriptsVerifier;
+use ckb_types::core::hardfork::HardForks;
 use omni_lock_test::omni_lock;
 use omni_lock_test::omni_lock::OmniLockWitnessLock;
 use omni_lock_test::xudt_rce_mol::{
     RCCellVecBuilder, RCDataBuilder, RCDataUnion, RCRuleBuilder, SmtProofBuilder,
     SmtProofEntryBuilder, SmtProofEntryVec, SmtProofEntryVecBuilder,
 };
+use std::sync::Arc;
 
 // on(1): white list
 // off(0): black list
@@ -374,7 +376,7 @@ fn build_rc_rule(smt_root: &[u8; 32], is_black: bool, is_emergency: bool) -> Byt
     res.as_bytes()
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DummyDataLoader {
     pub cells: HashMap<OutPoint, (CellOutput, ckb_types::bytes::Bytes)>,
 }
@@ -411,6 +413,12 @@ impl CellDataProvider for DummyDataLoader {
 
 impl HeaderProvider for DummyDataLoader {
     fn get_header(&self, _hash: &Byte32) -> Option<HeaderView> {
+        None
+    }
+}
+
+impl ExtensionProvider for DummyDataLoader {
+    fn get_block_extension(&self, _hash: &packed::Byte32) -> Option<packed::Bytes> {
         None
     }
 }
@@ -2000,16 +2008,6 @@ pub fn assert_script_error(err: Error, err_code: i8) {
     );
 }
 
-pub fn gen_consensus() -> Consensus {
-    let hardfork_switch = HardForkSwitch::new_without_any_enabled()
-        .as_builder()
-        .build()
-        .unwrap();
-    ConsensusBuilder::default()
-        .hardfork_switch(hardfork_switch)
-        .build()
-}
-
 pub fn gen_tx_env() -> TxVerifyEnv {
     let epoch = EpochNumberWithFraction::new(300, 0, 1);
     let header = HeaderView::new_advanced_builder()
@@ -2040,12 +2038,30 @@ pub fn bitcoin_hash160(buf: &[u8]) -> [u8; 20] {
     calculate_ripemd160(&calculate_sha256(buf))
 }
 
+pub fn verify_tx(
+    resolved_tx: ResolvedTransaction,
+    data_loader: DummyDataLoader,
+) -> TransactionScriptsVerifier<DummyDataLoader> {
+    let hard_fork = HardForks::new_mirana();
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hard_fork)
+        .build();
+    TransactionScriptsVerifier::new(
+        Arc::new(resolved_tx),
+        data_loader.clone(),
+        Arc::new(consensus),
+        Arc::new(TxVerifyEnv::new_commit(
+            &HeaderView::new_advanced_builder().build(),
+        )),
+    )
+}
+
 #[test]
 fn test_gen_sign_msg() {
     // generate_signing_message_hash(H256::from([1u8;32]), tx);
 }
 
-fn generate_signing_message_hash(
+fn _generate_signing_message_hash(
     message: &Option<H256>,
     tx: &TransactionView,
     resolved_inputs: &omni_lock_test::schemas_test::basic::ResolvedInputs,
