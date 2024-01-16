@@ -1,3 +1,4 @@
+use omni_lock_test::schemas::top_level::WitnessLayout;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
@@ -753,23 +754,14 @@ pub fn sign_tx_by_input_group(
                         .message(msg)
                         .seal(witness_lock.pack())
                         .build();
-                    let id: u32 = 4278190081; // TODO
-                    let bytes = sighash_all.as_bytes();
+                    let sighash_all = WitnessLayout::new_builder().set(sighash_all).build();
+                    let sighash_all = sighash_all.as_bytes();
                     println!(
-                        "sighash_all(size: {}): {:02x?}",
-                        bytes.len(),
-                        bytes.as_ref()
+                        "sighash_all with enum id(size: {}): {:02x?}",
+                        sighash_all.len(),
+                        sighash_all.as_ref()
                     );
-                    let mut res = BytesMut::new();
-                    res.put_u32_le(id);
-                    res.put(bytes);
-                    let res = res.freeze();
-                    println!(
-                        "omni lock WitnessLayout(size: {}): {:02x?}",
-                        res.len(),
-                        res.as_ref()
-                    );
-                    let res = res.pack();
+                    let res = sighash_all.pack();
                     println!("res(size: {}): {:02x?}", res.len(), res.as_bytes().as_ref());
                     res
                 } else {
