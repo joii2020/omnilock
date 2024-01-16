@@ -63,6 +63,7 @@ fmt:
 
 mol:
 	make omni_lock_mol
+	make cobuild_mol
 
 c/xudt_rce_mol.h: c/xudt_rce.mol
 	${MOLC} --language c --schema-file $< > $@
@@ -87,6 +88,10 @@ build/omni_lock: build/omni_lock.o build/cobuild.o
 	$(CC) $(LDFLAGS) -o $@ $^
 	cp $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
+
+cobuild_mol:
+	${MOLC} --language rust --schema-file schemas/blockchain.mol > tests/omni_lock_rust/src/schemas/blockchain.rs
+	${MOLC} --language rust --schema-file schemas/basic.mol > tests/omni_lock_rust/src/schemas/basic.rs
 
 clean:
 	rm -rf build/secp256k1_data_info_20210801.h build/dump_secp256k1_data_20210801
