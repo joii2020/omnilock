@@ -2064,7 +2064,7 @@ fn test_gen_sign_msg() {
 fn _generate_signing_message_hash(
     message: &Option<H256>,
     tx: &TransactionView,
-    resolved_inputs: &omni_lock_test::schemas_test::basic::ResolvedInputs,
+    resolved_inputs: &omni_lock_test::schemas::basic::ResolvedInputs,
 ) -> [u8; 32] {
     // message
     let mut hasher = match message {

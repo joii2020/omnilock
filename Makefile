@@ -90,8 +90,7 @@ build/omni_lock: build/omni_lock.o build/cobuild.o
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 cobuild_mol:
-	${MOLC} --language rust --schema-file schemas/blockchain.mol > tests/omni_lock_rust/src/schemas/blockchain.rs
-	${MOLC} --language rust --schema-file schemas/basic.mol > tests/omni_lock_rust/src/schemas/basic.rs
+	${MOLC} --language rust --schema-file c/basic.mol | rustfmt > tests/omni_lock_rust/src/schemas/basic.rs
 
 clean:
 	rm -rf build/secp256k1_data_info_20210801.h build/dump_secp256k1_data_20210801
