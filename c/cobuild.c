@@ -26,6 +26,8 @@ https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transactio
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#define BLAKE2B_BLOCK_SIZE 32
+
 #define CHECK2(cond, code)                                               \
   do {                                                                   \
     if (!(cond)) {                                                       \
@@ -68,8 +70,8 @@ const char *PERSONAL_SIGHASH_ALL_ONLY = "ckb-tcob-sgohash";
 const char *PERSONAL_OTX = "ckb-tcob-otxhash";
 
 /*
-  The seal cursor binds this data source. So the lifetime of data source should
-  be enough.
+  The seal cursor uses this data source. So the lifetime of data source should
+  be long enough.
  */
 static uint8_t g_cobuild_seal_data_source[DEFAULT_DATA_SOURCE_LENGTH];
 
@@ -105,7 +107,9 @@ void print_cursor(const char *name, mol2_cursor_t cursor) {
   print_raw_data(name, data, MIN(read_len, sizeof(data)));
 }
 
-#define BLAKE2B_UPDATE blake2b_update_debug
+// After being enabled, there will be a lot of logs.
+// #define BLAKE2B_UPDATE blake2b_update_debug
+#define BLAKE2B_UPDATE blake2b_update
 int blake2b_update_debug(blake2b_state *S, const void *pin, size_t inlen) {
   blake2b_update(S, pin, inlen);
   print_raw_data("blake2b_update: ", (uint8_t *)pin, inlen);
@@ -188,7 +192,7 @@ typedef uint32_t(read_from_t)(uintptr_t arg[], uint8_t *ptr, uint32_t len,
 
 static uint32_t read_from_witness(uintptr_t arg[], uint8_t *ptr, uint32_t len,
                                   uint32_t offset) {
-  int err;
+  int err = ERROR_GENERAL;
   uint64_t output_len = len;
   err = ckb_load_witness(ptr, &output_len, offset, arg[0], arg[1]);
   if (err != 0) {
@@ -225,7 +229,7 @@ void ckb_new_cursor(mol2_cursor_t *cursor, uint32_t total_len,
   mol2_data_source_t *ptr = (mol2_data_source_t *)data_source;
 
   ptr->read = read_from;
-  ptr->total_size = (uint32_t)total_len;
+  ptr->total_size = total_len;
   ptr->args[0] = index;
   ptr->args[1] = source;
 
@@ -238,7 +242,7 @@ void ckb_new_cursor(mol2_cursor_t *cursor, uint32_t total_len,
 
 int ckb_new_witness_cursor(mol2_cursor_t *cursor, uint8_t *data_source,
                            uint32_t cache_len, size_t index, size_t source) {
-  int err = 0;
+  int err = ERROR_GENERAL;
   uint64_t len = 0;
   err = ckb_load_witness(0, &len, 0, index, source);
   CHECK(err);
@@ -250,7 +254,8 @@ exit:
 }
 
 int ckb_hash_cursor(blake2b_state *ctx, mol2_cursor_t cursor) {
-  uint8_t batch[1024];
+  // one batch to drain whole cache perfectly
+  uint8_t batch[MAX_CACHE_SIZE];
   while (true) {
     uint32_t read_len = mol2_read_at(&cursor, batch, sizeof(batch));
     BLAKE2B_UPDATE(ctx, batch, read_len);
@@ -275,13 +280,13 @@ static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
 
 int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
                       uint8_t *data_source, size_t cache_len) {
-  int err = 0;
+  int err = ERROR_GENERAL;
   int message_count = 0;
   for (size_t index = 0;; index++) {
     mol2_cursor_t cursor;
-    /**
-     We need the cursor valid after function returns. So we receive a memory
-     with longer lifetime.
+    /*
+     The cursor should be valid after function returns. A memory with longer
+     lifetime is required.
     */
     err = ckb_new_witness_cursor(&cursor, data_source, cache_len, index,
                                  CKB_SOURCE_INPUT);
@@ -318,7 +323,7 @@ exit:
 }
 
 int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
-  int err = 0;
+  int err = ERROR_GENERAL;
   mol2_cursor_t cursor;
   err = ckb_new_witness_cursor(&cursor, g_cobuild_seal_data_source,
                                MAX_CACHE_SIZE, 0, CKB_SOURCE_GROUP_INPUT);
@@ -326,7 +331,7 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
   uint32_t id = 0;
   err = try_union_unpack_id(&cursor, &id);
   // when error occurs here, it might be a WitnessArgs layout. It shouldn't be
-  // cobuild.
+  // cobuild and returns early.
   CHECK(err);
   if (id == WitnessLayoutSighashAll || id == WitnessLayoutSighashAllOnly) {
     mol2_union_t uni = mol2_union_unpack(&cursor);
@@ -341,14 +346,14 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
     */
     *seal_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
   } else {
+    // the union id should be SighashAll or SighashAllOnly. otherwise, it fails
+    // and mark it as non cobuild.
     CHECK2(false, ERROR_SIGHASHALL_NOSEAL);
   }
 
 exit:
   return err;
 }
-
-int ckb_calculate_inputs_len();
 
 int ckb_generate_signing_message_hash(bool has_message,
                                       mol2_cursor_t message_cursor,
@@ -368,18 +373,22 @@ int ckb_generate_signing_message_hash(bool has_message,
   }
 
   // hash tx hash
-  uint8_t tx_hash[32];
-  uint64_t tx_hash_len = 32;
+  uint8_t tx_hash[BLAKE2B_BLOCK_SIZE];
+  uint64_t tx_hash_len = sizeof(tx_hash);
   err = ckb_load_tx_hash(tx_hash, &tx_hash_len, 0);
   CHECK(err);
   BLAKE2B_UPDATE(&ctx, tx_hash, sizeof(tx_hash));
 
   // hash input cell and data
-  int input_len = ckb_calculate_inputs_len();
-  for (size_t index = 0; index < input_len; index++) {
+  size_t index = 0;
+  for (;; index++) {
+    // default CellOutput size is 77 bytes
     uint8_t cell[128];
     uint64_t cell_len = sizeof(cell);
     err = ckb_load_cell(cell, &cell_len, 0, index, CKB_SOURCE_INPUT);
+    if (err == CKB_INDEX_OUT_OF_BOUND) {
+      break;
+    }
     CHECK(err);
     BLAKE2B_UPDATE(&ctx, cell, cell_len);
 
@@ -389,13 +398,13 @@ int ckb_generate_signing_message_hash(bool has_message,
     mol2_cursor_t cell_data_cursor;
     ckb_new_cursor(&cell_data_cursor, cell_data_len, read_from_cell_data,
                    data_source, MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
-    uint32_t cell_data_len2 = (uint32_t)cell_data_len;
-    BLAKE2B_UPDATE(&ctx, &cell_data_len2, 4);
+    // only hash as uint32_t. 4 bytes is enough
+    BLAKE2B_UPDATE(&ctx, &cell_data_len, 4);
     err = ckb_hash_cursor(&ctx, cell_data_cursor);
     CHECK(err);
   }
-
-  // hash remaining witness
+  size_t input_len = index;
+  // hash remaining witnesses
   for (size_t index = input_len;; index++) {
     uint64_t witness_len = 0;
     err = ckb_load_witness(0, &witness_len, 0, index, CKB_SOURCE_INPUT);
@@ -406,24 +415,24 @@ int ckb_generate_signing_message_hash(bool has_message,
     mol2_cursor_t witness_cursor;
     ckb_new_cursor(&witness_cursor, witness_len, read_from_cell_data,
                    data_source, MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
-    uint32_t witness_len2 = (uint32_t)witness_len;
-    BLAKE2B_UPDATE(&ctx, &witness_len2, 4);
+    // only hash as uint32_t. 4 bytes is enough
+    BLAKE2B_UPDATE(&ctx, &witness_len, 4);
     err = ckb_hash_cursor(&ctx, witness_cursor);
     CHECK(err);
   }
-  blake2b_final(&ctx, signing_message_hash, 32);
+  blake2b_final(&ctx, signing_message_hash, BLAKE2B_BLOCK_SIZE);
 exit:
   return err;
 }
 
 int ckb_parse_message(uint8_t *signing_message_hash, mol2_cursor_t *seal) {
-  int err = 0;
+  int err = ERROR_GENERAL;
 
   err = ckb_check_others_in_group();
   CHECK(err);
   bool has_message = false;
   mol2_cursor_t message;
-  // the message cursor requires lifetime of data_source
+  // the message cursor requires longer lifetime of data_source
   uint8_t data_source[DEFAULT_DATA_SOURCE_LENGTH];
   err = ckb_fetch_message(&has_message, &message, data_source, MAX_CACHE_SIZE);
   CHECK(err);
