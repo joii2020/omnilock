@@ -6,18 +6,16 @@ use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use ckb_chain_spec::consensus::{Consensus, ConsensusBuilder};
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::Error;
 use ckb_hash::{Blake2b, Blake2bBuilder};
 use ckb_script::TxVerifyEnv;
-use ckb_traits::{CellDataProvider, HeaderProvider};
+use ckb_traits::{CellDataProvider, ExtensionProvider, HeaderProvider};
 use ckb_types::bytes::{BufMut, BytesMut};
 use ckb_types::{
     bytes::Bytes,
     core::{
         cell::{CellMeta, CellMetaBuilder, ResolvedTransaction},
-        hardfork::HardForkSwitch,
         Capacity, DepType, EpochNumberWithFraction, HeaderView, ScriptHashType, TransactionBuilder,
         TransactionView,
     },
@@ -39,12 +37,16 @@ use sparse_merkle_tree::default_store::DefaultStore;
 use sparse_merkle_tree::traits::Hasher;
 use sparse_merkle_tree::{SparseMerkleTree, H256};
 
+use ckb_chain_spec::consensus::ConsensusBuilder;
+use ckb_script::TransactionScriptsVerifier;
+use ckb_types::core::hardfork::HardForks;
 use omni_lock_test::omni_lock;
 use omni_lock_test::omni_lock::OmniLockWitnessLock;
 use omni_lock_test::xudt_rce_mol::{
     RCCellVecBuilder, RCDataBuilder, RCDataUnion, RCRuleBuilder, SmtProofBuilder,
     SmtProofEntryBuilder, SmtProofEntryVec, SmtProofEntryVecBuilder,
 };
+use std::sync::Arc;
 
 // on(1): white list
 // off(0): black list
@@ -374,7 +376,7 @@ fn build_rc_rule(smt_root: &[u8; 32], is_black: bool, is_emergency: bool) -> Byt
     res.as_bytes()
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DummyDataLoader {
     pub cells: HashMap<OutPoint, (CellOutput, ckb_types::bytes::Bytes)>,
 }
@@ -411,6 +413,12 @@ impl CellDataProvider for DummyDataLoader {
 
 impl HeaderProvider for DummyDataLoader {
     fn get_header(&self, _hash: &Byte32) -> Option<HeaderView> {
+        None
+    }
+}
+
+impl ExtensionProvider for DummyDataLoader {
+    fn get_block_extension(&self, _hash: &packed::Byte32) -> Option<packed::Bytes> {
         None
     }
 }
@@ -2000,17 +2008,6 @@ pub fn assert_script_error(err: Error, err_code: i8) {
     );
 }
 
-pub fn gen_consensus() -> Consensus {
-    let hardfork_switch = HardForkSwitch::new_without_any_enabled()
-        .as_builder()
-        .rfc_0232(200)
-        .build()
-        .unwrap();
-    ConsensusBuilder::default()
-        .hardfork_switch(hardfork_switch)
-        .build()
-}
-
 pub fn gen_tx_env() -> TxVerifyEnv {
     let epoch = EpochNumberWithFraction::new(300, 0, 1);
     let header = HeaderView::new_advanced_builder()
@@ -2039,4 +2036,65 @@ pub fn calculate_ripemd160(buf: &[u8]) -> [u8; 20] {
 
 pub fn bitcoin_hash160(buf: &[u8]) -> [u8; 20] {
     calculate_ripemd160(&calculate_sha256(buf))
+}
+
+pub fn verify_tx(
+    resolved_tx: ResolvedTransaction,
+    data_loader: DummyDataLoader,
+) -> TransactionScriptsVerifier<DummyDataLoader> {
+    let hard_fork = HardForks::new_mirana();
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hard_fork)
+        .build();
+    TransactionScriptsVerifier::new(
+        Arc::new(resolved_tx),
+        data_loader.clone(),
+        Arc::new(consensus),
+        Arc::new(TxVerifyEnv::new_commit(
+            &HeaderView::new_advanced_builder().build(),
+        )),
+    )
+}
+
+#[test]
+fn test_gen_sign_msg() {
+    // generate_signing_message_hash(H256::from([1u8;32]), tx);
+}
+
+fn _generate_signing_message_hash(
+    message: &Option<H256>,
+    tx: &TransactionView,
+    resolved_inputs: &omni_lock_test::schemas_test::basic::ResolvedInputs,
+) -> [u8; 32] {
+    // message
+    let mut hasher = match message {
+        Some(m) => {
+            let mut hasher = omni_lock_test::blake2b::new_sighash_all_blake2b();
+            hasher.update(m.as_slice());
+            hasher
+        }
+        None => omni_lock_test::blake2b::new_sighash_all_only_blake2b(),
+    };
+    // tx hash
+    hasher.update(tx.hash().as_slice());
+    // inputs cell and data
+    let inputs_len = tx.inputs().len();
+    debug_assert!(inputs_len == resolved_inputs.outputs().len());
+    debug_assert!(inputs_len == resolved_inputs.outputs_data().len());
+    for i in 0..inputs_len {
+        let input_cell = resolved_inputs.outputs().get(i).unwrap();
+        hasher.update(&input_cell.as_slice());
+        let input_cell_data = resolved_inputs.outputs_data().get(i).unwrap();
+        hasher.update(&(input_cell_data.len() as u32).to_le_bytes());
+        hasher.update(&input_cell_data.raw_data());
+    }
+    // extra witnesses
+    for witness in tx.witnesses().into_iter().skip(inputs_len) {
+        hasher.update(&(witness.len() as u32).to_le_bytes());
+        hasher.update(&witness.raw_data());
+    }
+
+    let mut result = [0u8; 32];
+    hasher.finalize(&mut result);
+    result
 }
