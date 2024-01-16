@@ -2,6 +2,7 @@
 This is an implementation in C of cobuild. See reference implementation in Rust:
 https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transaction-cobuild/src/lib.rs
 */
+#define CKB_C_STDLIB_PRINTF
 // clang-format off
 #define CKB_DECLARATION_ONLY
 #include <stddef.h>
@@ -180,7 +181,8 @@ int ckb_check_others_in_group() {
       break;
     }
     CHECK(err);
-    CHECK2(witness_len > 0, ERROR_NONEMPTY_WITNESS);
+    // mohanson
+    CHECK2(witness_len == 0, ERROR_NONEMPTY_WITNESS);
   }
 
 exit:
@@ -255,6 +257,7 @@ exit:
 
 int ckb_hash_cursor(blake2b_state *ctx, mol2_cursor_t cursor) {
   // one batch to drain whole cache perfectly
+  // mohanson: cell data, 0, 1, 2048, 2049, 500k
   uint8_t batch[MAX_CACHE_SIZE];
   while (true) {
     uint32_t read_len = mol2_read_at(&cursor, batch, sizeof(batch));
@@ -273,6 +276,7 @@ int ckb_hash_cursor(blake2b_state *ctx, mol2_cursor_t cursor) {
 static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
   uint32_t len = mol2_read_at(cursor, (uint8_t *)id, 4);
   if (len != 4) {
+    // joii
     return MOL2_ERR_DATA;
   }
   return CKB_SUCCESS;
@@ -312,10 +316,12 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
         */
         *message_cursor = mol2_table_slice_by_index(&uni.cursor, 1);
         message_count++;
+        // joii
         CHECK2(message_count <= 1, ERROR_SIGHASHALL_DUP);
       }
     }
   }
+  // joii
   *has_message = message_count > 0;
 
 exit:
@@ -348,6 +354,7 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
   } else {
     // the union id should be SighashAll or SighashAllOnly. otherwise, it fails
     // and mark it as non cobuild.
+    // mohanson
     CHECK2(false, ERROR_SIGHASHALL_NOSEAL);
   }
 
@@ -366,9 +373,11 @@ int ckb_generate_signing_message_hash(bool has_message,
   blake2b_state ctx;
   // use different hash based on message
   if (has_message) {
+    // mohanson
     new_sighash_all_blake2b(&ctx);
     ckb_hash_cursor(&ctx, message_cursor);
   } else {
+    // joii
     new_sighash_all_only_blake2b(&ctx);
   }
 
@@ -413,8 +422,8 @@ int ckb_generate_signing_message_hash(bool has_message,
     }
     CHECK(err);
     mol2_cursor_t witness_cursor;
-    ckb_new_cursor(&witness_cursor, witness_len, read_from_cell_data,
-                   data_source, MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
+    ckb_new_cursor(&witness_cursor, witness_len, read_from_witness, data_source,
+                   MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
     // only hash as uint32_t. 4 bytes is enough
     BLAKE2B_UPDATE(&ctx, &witness_len, 4);
     err = ckb_hash_cursor(&ctx, witness_cursor);
@@ -429,6 +438,7 @@ int ckb_parse_message(uint8_t *signing_message_hash, mol2_cursor_t *seal) {
   int err = ERROR_GENERAL;
 
   err = ckb_check_others_in_group();
+  // mohanson
   CHECK(err);
   bool has_message = false;
   mol2_cursor_t message;

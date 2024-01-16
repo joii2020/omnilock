@@ -759,7 +759,7 @@ fn test_binary_unchanged() {
 
     let actual_hash = faster_hex::hex_string(&hash).unwrap();
     assert_eq!(
-        "1c18675ce5fad6d61c0dde08c59c7612648012aa88ac100949b579e47df69ab3",
+        "ae9dbf328b59b98d773a8badbd1192e892d6206cc6e42af1f0982e868c9f8f70",
         &actual_hash
     );
 }
