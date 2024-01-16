@@ -86,6 +86,8 @@ pub const ERROR_EXCEED_SUPPLY: i8 = 90;
 pub const ERROR_SUPPLY_AMOUNT: i8 = 91;
 pub const ERROR_BURN: i8 = 92;
 pub const ERROR_NO_INFO_CELL: i8 = 93;
+// cobuild
+pub const ERROR_COBUILD_MOL2_ERR_DATA: i8 = 0x07;
 
 // https://github.com/bitcoin-core/secp256k1/blob/d373bf6d08c82ac5496bf8103698c9f54d8d99d2/include/secp256k1.h#L219
 pub const SECP256K1_TAG_PUBKEY_EVEN: u8 = 0x02;
@@ -987,6 +989,14 @@ pub fn gen_tx_with_grouped_args(
         }
     }
 
+    match &config.custom_extension_witnesses {
+        Some(ws) => {
+            for w in ws {
+                tx_builder = tx_builder.witness(w.pack());
+            }
+        }
+        _ => {}
+    };
     tx_builder.build()
 }
 
@@ -1484,6 +1494,7 @@ pub struct TestConfig {
     pub chain_config: Option<Box<dyn ChainConfig>>,
     pub cobuild_enabled: bool,
     pub cobuild_message: Message,
+    pub custom_extension_witnesses: Option<Vec<Bytes>>,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -1584,6 +1595,7 @@ impl TestConfig {
             chain_config: None,
             cobuild_enabled: false,
             cobuild_message: Message::default(),
+            custom_extension_witnesses: None,
         }
     }
 
