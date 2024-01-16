@@ -95,7 +95,7 @@ void print_raw_data(const char *name, uint8_t *data, size_t len) {
     len = limit;
   }
   bin_to_hex(data, str, len);
-  printf("%s: %s", name, str);
+  printf("%s(len=%d): %s", name, len, str);
 }
 
 void print_cursor(const char *name, mol2_cursor_t cursor) {
@@ -109,8 +109,8 @@ void print_cursor(const char *name, mol2_cursor_t cursor) {
 }
 
 // After being enabled, there will be a lot of logs.
-// #define BLAKE2B_UPDATE blake2b_update_debug
-#define BLAKE2B_UPDATE blake2b_update
+#define BLAKE2B_UPDATE blake2b_update_debug
+// #define BLAKE2B_UPDATE blake2b_update
 int blake2b_update_debug(blake2b_state *S, const void *pin, size_t inlen) {
   blake2b_update(S, pin, inlen);
   print_raw_data("blake2b_update: ", (uint8_t *)pin, inlen);
@@ -299,6 +299,7 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
       break;
     }
     CHECK(err);
+
     uint32_t id = 0;
     err = try_union_unpack_id(&cursor, &id);
     if (err) {
@@ -308,13 +309,13 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
     } else {
       if (id == WitnessLayoutSighashAll) {
         mol2_union_t uni = mol2_union_unpack(&cursor);
-        /* See molecule defintion, the index is 1:
+        /* See molecule defintion, the index is 0:
         table SighashAll {
-          seal: Bytes,
           message: Message,
+          seal: Bytes,
         }
         */
-        *message_cursor = mol2_table_slice_by_index(&uni.cursor, 1);
+        *message_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
         message_count++;
         // joii
         CHECK2(message_count <= 1, ERROR_SIGHASHALL_DUP);
@@ -339,22 +340,28 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
   // when error occurs here, it might be a WitnessArgs layout. It shouldn't be
   // cobuild and returns early.
   CHECK(err);
-  if (id == WitnessLayoutSighashAll || id == WitnessLayoutSighashAllOnly) {
+  if (id == WitnessLayoutSighashAll) {
     mol2_union_t uni = mol2_union_unpack(&cursor);
-    /* See molecule defintion, the index is 0:
+    /* See molecule defintion, the index is 1:
     table SighashAll {
-      seal: Bytes,
       message: Message,
-    }
-    table SighashAllOnly {
       seal: Bytes,
     }
     */
+    *seal_cursor = mol2_table_slice_by_index(&uni.cursor, 1);
+  } else if (id == WitnessLayoutSighashAllOnly) {
+    /* See molecule defintion, the index is 0:
+    table SighashAllOnly {
+      seal: Bytes,
+    }
+  */
+    mol2_union_t uni = mol2_union_unpack(&cursor);
     *seal_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
   } else {
     // the union id should be SighashAll or SighashAllOnly. otherwise, it fails
     // and mark it as non cobuild.
     // mohanson
+    printf("error in fetch_seal, id = %d", id);
     CHECK2(false, ERROR_SIGHASHALL_NOSEAL);
   }
 
@@ -371,11 +378,13 @@ int ckb_generate_signing_message_hash(bool has_message,
   uint8_t data_source[DEFAULT_DATA_SOURCE_LENGTH];
 
   blake2b_state ctx;
+  size_t count = 0;
   // use different hash based on message
   if (has_message) {
     // mohanson
     new_sighash_all_blake2b(&ctx);
     ckb_hash_cursor(&ctx, message_cursor);
+    count += message_cursor.size;
   } else {
     // joii
     new_sighash_all_only_blake2b(&ctx);
@@ -387,19 +396,22 @@ int ckb_generate_signing_message_hash(bool has_message,
   err = ckb_load_tx_hash(tx_hash, &tx_hash_len, 0);
   CHECK(err);
   BLAKE2B_UPDATE(&ctx, tx_hash, sizeof(tx_hash));
+  count += 32;
 
   // hash input cell and data
   size_t index = 0;
   for (;; index++) {
-    // default CellOutput size is 77 bytes
-    uint8_t cell[128];
-    uint64_t cell_len = sizeof(cell);
-    err = ckb_load_cell(cell, &cell_len, 0, index, CKB_SOURCE_INPUT);
+    // default input size is 44 bytes
+    uint8_t input[128];
+    uint64_t input_len = sizeof(input);
+    err = ckb_load_input(input, &input_len, 0, index, CKB_SOURCE_INPUT);
     if (err == CKB_INDEX_OUT_OF_BOUND) {
+      err = 0;
       break;
     }
     CHECK(err);
-    BLAKE2B_UPDATE(&ctx, cell, cell_len);
+    BLAKE2B_UPDATE(&ctx, input, input_len);
+    count += input_len;
 
     uint64_t cell_data_len = 0;
     err = ckb_load_cell_data(0, &cell_data_len, 0, index, CKB_SOURCE_INPUT);
@@ -409,7 +421,9 @@ int ckb_generate_signing_message_hash(bool has_message,
                    data_source, MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
     // only hash as uint32_t. 4 bytes is enough
     BLAKE2B_UPDATE(&ctx, &cell_data_len, 4);
+    count += 4;
     err = ckb_hash_cursor(&ctx, cell_data_cursor);
+    count += cell_data_cursor.size;
     CHECK(err);
   }
   size_t input_len = index;
@@ -418,6 +432,7 @@ int ckb_generate_signing_message_hash(bool has_message,
     uint64_t witness_len = 0;
     err = ckb_load_witness(0, &witness_len, 0, index, CKB_SOURCE_INPUT);
     if (err == CKB_INDEX_OUT_OF_BOUND) {
+      err = 0;
       break;
     }
     CHECK(err);
@@ -426,10 +441,14 @@ int ckb_generate_signing_message_hash(bool has_message,
                    MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
     // only hash as uint32_t. 4 bytes is enough
     BLAKE2B_UPDATE(&ctx, &witness_len, 4);
+    count += 4;
     err = ckb_hash_cursor(&ctx, witness_cursor);
+    count += witness_cursor.size;
     CHECK(err);
   }
   blake2b_final(&ctx, signing_message_hash, BLAKE2B_BLOCK_SIZE);
+  printf("ckb_generate_signing_message_hash total hashed %d bytes", count);
+
 exit:
   return err;
 }
@@ -446,14 +465,15 @@ int ckb_parse_message(uint8_t *signing_message_hash, mol2_cursor_t *seal) {
   uint8_t data_source[DEFAULT_DATA_SOURCE_LENGTH];
   err = ckb_fetch_message(&has_message, &message, data_source, MAX_CACHE_SIZE);
   CHECK(err);
+  print_cursor("message", message);
 
   err = ckb_generate_signing_message_hash(has_message, message,
                                           signing_message_hash);
   CHECK(err);
+  print_raw_data("signing_message_hash", signing_message_hash, 32);
 
   err = ckb_fetch_seal(seal);
   CHECK(err);
-  print_raw_data("signing_message_hash", signing_message_hash, 32);
   print_cursor("seal", *seal);
 
 exit:

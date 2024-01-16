@@ -91,6 +91,7 @@ build/omni_lock: build/omni_lock.o build/cobuild.o
 
 cobuild_mol:
 	${MOLC} --language rust --schema-file c/basic.mol | rustfmt > tests/omni_lock_rust/src/schemas/basic.rs
+	${MOLC} --language rust --schema-file c/top_level.mol | rustfmt > tests/omni_lock_rust/src/schemas/top_level.rs
 
 clean:
 	rm -rf build/secp256k1_data_info_20210801.h build/dump_secp256k1_data_20210801

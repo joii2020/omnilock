@@ -42,6 +42,7 @@ use ckb_script::TransactionScriptsVerifier;
 use ckb_types::core::hardfork::HardForks;
 use omni_lock_test::omni_lock;
 use omni_lock_test::omni_lock::OmniLockWitnessLock;
+use omni_lock_test::schemas::basic::{Message, SighashAll};
 use omni_lock_test::xudt_rce_mol::{
     RCCellVecBuilder, RCDataBuilder, RCDataUnion, RCRuleBuilder, SmtProofBuilder,
     SmtProofEntryBuilder, SmtProofEntryVec, SmtProofEntryVecBuilder,
@@ -617,44 +618,47 @@ pub fn sign_tx_by_input_group(
     let tx_hash = tx.hash();
     let mut preimage_hash: Bytes = Default::default();
 
+    let message = if config.cobuild_enabled {
+        cobuild_generate_signing_message_hash(&Some(config.cobuild_message.clone()), &tx)
+    } else {
+        let mut blake2b = ckb_hash::new_blake2b();
+        let mut message = [0u8; 32];
+        blake2b.update(&tx_hash.raw_data());
+        // digest the first witness
+        let witness = WitnessArgs::new_unchecked(tx.witnesses().get(begin_index).unwrap().unpack());
+        let zero_lock = gen_zero_witness_lock(
+            config.use_rc,
+            config.use_rc_identity,
+            &proof_vec,
+            &identity,
+            config.sig_len,
+            config.preimage_len,
+        );
+
+        let witness_for_digest = witness
+            .clone()
+            .as_builder()
+            .lock(Some(zero_lock).pack())
+            .build();
+        let witness_len = witness_for_digest.as_bytes().len() as u64;
+        blake2b.update(&witness_len.to_le_bytes());
+        blake2b.update(&witness_for_digest.as_bytes());
+        ((begin_index + 1)..(begin_index + len)).for_each(|n| {
+            let witness = tx.witnesses().get(n).unwrap();
+            let witness_len = witness.raw_data().len() as u64;
+            blake2b.update(&witness_len.to_le_bytes());
+            blake2b.update(&witness.raw_data());
+        });
+        blake2b.finalize(&mut message);
+        message
+    };
+    println!("origin message: {:02x?}", message);
     let mut signed_witnesses: Vec<packed::Bytes> = tx
         .inputs()
         .into_iter()
         .enumerate()
         .map(|(i, _)| {
             if i == begin_index {
-                let mut blake2b = ckb_hash::new_blake2b();
-                let mut message = [0u8; 32];
-                blake2b.update(&tx_hash.raw_data());
-                // digest the first witness
-                let witness = WitnessArgs::new_unchecked(tx.witnesses().get(i).unwrap().unpack());
-                let zero_lock = gen_zero_witness_lock(
-                    config.use_rc,
-                    config.use_rc_identity,
-                    &proof_vec,
-                    &identity,
-                    config.sig_len,
-                    config.preimage_len,
-                );
-
-                let witness_for_digest = witness
-                    .clone()
-                    .as_builder()
-                    .lock(Some(zero_lock).pack())
-                    .build();
-                let witness_len = witness_for_digest.as_bytes().len() as u64;
-                blake2b.update(&witness_len.to_le_bytes());
-                blake2b.update(&witness_for_digest.as_bytes());
-                ((i + 1)..(i + len)).for_each(|n| {
-                    let witness = tx.witnesses().get(n).unwrap();
-                    let witness_len = witness.raw_data().len() as u64;
-                    blake2b.update(&witness_len.to_le_bytes());
-                    blake2b.update(&witness.raw_data());
-                });
-                blake2b.finalize(&mut message);
-
-                println!("origin message: {:02x?}", message);
-
                 let message = if use_chain_confg(config.id.flags) {
                     assert!(config.chain_config.is_some());
                     config
@@ -665,9 +669,7 @@ pub fn sign_tx_by_input_group(
                 } else {
                     CkbH256::from(message)
                 };
-
                 println!("sign message: {:02x?}", message.as_bytes().to_vec());
-
                 let witness_lock = if config.id.flags == IDENTITY_FLAGS_DL {
                     let (mut sig, pubkey) = if config.use_rsa {
                         rsa_sign(message.as_bytes(), &config.rsa_private_key)
@@ -745,12 +747,42 @@ pub fn sign_tx_by_input_group(
                     witness_lock.to_vec()
                 );
 
-                witness
-                    .as_builder()
-                    .lock(Some(witness_lock).pack())
-                    .build()
-                    .as_bytes()
-                    .pack()
+                if config.cobuild_enabled {
+                    let msg = config.cobuild_message.clone();
+                    let sighash_all = SighashAll::new_builder()
+                        .message(msg)
+                        .seal(witness_lock.pack())
+                        .build();
+                    let id: u32 = 4278190081; // TODO
+                    let bytes = sighash_all.as_bytes();
+                    println!(
+                        "sighash_all(size: {}): {:02x?}",
+                        bytes.len(),
+                        bytes.as_ref()
+                    );
+                    let mut res = BytesMut::new();
+                    res.put_u32_le(id);
+                    res.put(bytes);
+                    let res = res.freeze();
+                    println!(
+                        "omni lock WitnessLayout(size: {}): {:02x?}",
+                        res.len(),
+                        res.as_ref()
+                    );
+                    let res = res.pack();
+                    println!("res(size: {}): {:02x?}", res.len(), res.as_bytes().as_ref());
+                    res
+                } else {
+                    let witness = WitnessArgs::new_unchecked(
+                        tx.witnesses().get(begin_index).unwrap().unpack(),
+                    );
+                    witness
+                        .as_builder()
+                        .lock(Some(witness_lock).pack())
+                        .build()
+                        .as_bytes()
+                        .pack()
+                }
             } else {
                 tx.witnesses().get(i).unwrap_or_default()
             }
@@ -1458,6 +1490,8 @@ pub struct TestConfig {
     pub leading_witness_count: usize,
 
     pub chain_config: Option<Box<dyn ChainConfig>>,
+    pub cobuild_enabled: bool,
+    pub cobuild_message: Message,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -1556,6 +1590,8 @@ impl TestConfig {
             leading_witness_count: 0,
 
             chain_config: None,
+            cobuild_enabled: false,
+            cobuild_message: Message::default(),
         }
     }
 
@@ -2061,39 +2097,47 @@ fn test_gen_sign_msg() {
     // generate_signing_message_hash(H256::from([1u8;32]), tx);
 }
 
-fn _generate_signing_message_hash(
-    message: &Option<H256>,
+pub fn cobuild_generate_signing_message_hash(
+    message: &Option<Message>,
     tx: &TransactionView,
-    resolved_inputs: &omni_lock_test::schemas::basic::ResolvedInputs,
 ) -> [u8; 32] {
+    let mut count = 0;
     // message
     let mut hasher = match message {
         Some(m) => {
             let mut hasher = omni_lock_test::blake2b::new_sighash_all_blake2b();
             hasher.update(m.as_slice());
+            count += m.as_slice().len();
             hasher
         }
         None => omni_lock_test::blake2b::new_sighash_all_only_blake2b(),
     };
     // tx hash
     hasher.update(tx.hash().as_slice());
+    count += 32;
     // inputs cell and data
     let inputs_len = tx.inputs().len();
-    debug_assert!(inputs_len == resolved_inputs.outputs().len());
-    debug_assert!(inputs_len == resolved_inputs.outputs_data().len());
     for i in 0..inputs_len {
-        let input_cell = resolved_inputs.outputs().get(i).unwrap();
+        let input_cell = tx.inputs().get(i).unwrap();
         hasher.update(&input_cell.as_slice());
-        let input_cell_data = resolved_inputs.outputs_data().get(i).unwrap();
+        count += input_cell.as_slice().len();
+        let input_cell_data = tx.outputs_data().get(i).unwrap();
         hasher.update(&(input_cell_data.len() as u32).to_le_bytes());
+        count += 4;
         hasher.update(&input_cell_data.raw_data());
+        count += input_cell_data.raw_data().len();
     }
     // extra witnesses
     for witness in tx.witnesses().into_iter().skip(inputs_len) {
         hasher.update(&(witness.len() as u32).to_le_bytes());
+        count += 4;
         hasher.update(&witness.raw_data());
+        count += witness.raw_data().len();
     }
-
+    println!(
+        "cobuild_generate_signing_message_hash totally hashed {} bytes",
+        count
+    );
     let mut result = [0u8; 32];
     hasher.finalize(&mut result);
     result

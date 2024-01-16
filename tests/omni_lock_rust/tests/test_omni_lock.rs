@@ -456,6 +456,26 @@ fn test_btc_success(vtype: u8) {
     verify_result.expect("pass verification");
 }
 
+fn test_cobuild_btc_success(vtype: u8) {
+    let mut data_loader = DummyDataLoader::new();
+
+    let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
+    config.cobuild_enabled = true;
+    config.set_chain_config(Box::new(BitcoinConfig {
+        sign_vtype: vtype,
+        pubkey_err: false,
+    }));
+
+    let tx = gen_tx(&mut data_loader, &mut config);
+    let tx = sign_tx(&mut data_loader, tx, &mut config);
+    let resolved_tx = build_resolved_tx(&data_loader, &tx);
+
+    let mut verifier = verify_tx(resolved_tx, data_loader);
+    verifier.set_debug_printer(debug_printer);
+    let verify_result = verifier.verify(MAX_CYCLES);
+    verify_result.expect("pass verification");
+}
+
 fn test_btc_err_pubkey(vtype: u8) {
     let mut data_loader = DummyDataLoader::new();
 
@@ -478,15 +498,20 @@ fn test_btc_err_pubkey(vtype: u8) {
 
 fn test_btc(vtype: u8) {
     test_btc_success(vtype);
-    // test_btc_err_pubkey(vtype);
+    test_btc_err_pubkey(vtype);
 }
 
 #[test]
 fn test_btc_unlock() {
     test_btc(BITCOIN_V_TYPE_P2PKHUNCOMPRESSED);
-    // test_btc(BITCOIN_V_TYPE_P2PKHCOMPRESSED);
-    // test_btc(BITCOIN_V_TYPE_SEGWITP2SH);
-    // test_btc(BITCOIN_V_TYPE_SEGWITBECH32);
+    test_btc(BITCOIN_V_TYPE_P2PKHCOMPRESSED);
+    test_btc(BITCOIN_V_TYPE_SEGWITP2SH);
+    test_btc(BITCOIN_V_TYPE_SEGWITBECH32);
+}
+
+#[test]
+fn test_cobuild_btc_native_segwit() {
+    test_cobuild_btc_success(BITCOIN_V_TYPE_P2PKHCOMPRESSED);
 }
 
 #[test]
@@ -652,7 +677,7 @@ fn test_binary_unchanged() {
 
     let actual_hash = faster_hex::hex_string(&hash);
     assert_eq!(
-        "ae9dbf328b59b98d773a8badbd1192e892d6206cc6e42af1f0982e868c9f8f70",
+        "924c9e5840954b9856ba8dc8d5e735be3c180e36489071d15a7fc49c80f24bb3",
         &actual_hash
     );
 }
