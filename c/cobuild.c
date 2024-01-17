@@ -281,8 +281,6 @@ static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
   uint32_t len = mol2_read_at(cursor, (uint8_t *)id, 4);
   if (len != 4) {
     // joii
-    // testcase: test_try_union_unpack_id_by_defualt
-    // testcase: test_try_union_unpack_id_by_cobuild
     return MOL2_ERR_DATA;
   }
   return CKB_SUCCESS;
@@ -303,6 +301,7 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
     CHECK(err);
     if (len >= sizeof(id) && id == WitnessLayoutSighashAll) {
       // joii
+      // test_cobuild_sighashall_dup
       CHECK2(!*has_message, ERROR_SIGHASHALL_DUP);
       *has_message = true;
       mol2_cursor_t cursor = {0};
@@ -318,11 +317,14 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
       */
       *message_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
     } else {
-      // there are some possibilities:
-      // 1. an invalid witness (e.g. empty)
-      // 2. WitnessArgs
-      // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
-      // joii
+        // there are some possibilities:
+        // 1. an invalid witness (e.g. empty)
+        // 2. WitnessArgs
+        // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
+        // joii
+        // test_cobuild_invaild_witness
+        // test_cobuild_add_witnessargs
+        // test_cobuild_other_cobuild_witness_layout
     }
   }
 exit:
@@ -388,6 +390,7 @@ int ckb_generate_signing_message_hash(bool has_message,
     count += message_cursor.size;
   } else {
     // joii
+    // test_no_cobuild_add_witness
     new_sighash_all_only_blake2b(&ctx);
   }
 

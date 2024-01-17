@@ -22,6 +22,7 @@ use ckb_types::{
 };
 use lazy_static::lazy_static;
 use misc::*;
+use omni_lock_test::schemas::{basic::*, blockchain::WitnessArgsBuilder, top_level::*};
 use std::sync::Arc;
 
 //
@@ -683,7 +684,7 @@ fn test_binary_unchanged() {
 }
 
 #[test]
-fn test_try_union_unpack_id_by_default() {
+fn test_no_cobuild_add_witness() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -705,7 +706,7 @@ fn test_try_union_unpack_id_by_default() {
 }
 
 #[test]
-fn test_try_union_unpack_id_by_cobuild() {
+fn test_cobuild_invaild_witness() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -715,7 +716,11 @@ fn test_try_union_unpack_id_by_cobuild() {
         pubkey_err: false,
     }));
 
-    config.custom_extension_witnesses = Some(vec![Bytes::from([00, 00].to_vec())]);
+    config.custom_extension_witnesses = Some(vec![
+        Bytes::from([00, 01, 00].to_vec()),
+        Bytes::from([00, 00, 00, 00].to_vec()),
+        Bytes::new(),
+    ]);
 
     let tx = gen_tx(&mut data_loader, &mut config);
     let tx = sign_tx(&mut data_loader, tx, &mut config);
@@ -726,6 +731,7 @@ fn test_try_union_unpack_id_by_cobuild() {
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
 }
+
 
 #[test]
 fn test_non_empty_witness() {
@@ -949,4 +955,90 @@ fn test_sighash_all_only() {
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
+}
+
+
+#[test]
+fn test_cobuild_add_witnessargs() {
+    let mut data_loader = DummyDataLoader::new();
+
+    let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
+    config.cobuild_enabled = true;
+    config.set_chain_config(Box::new(BitcoinConfig {
+        sign_vtype: BITCOIN_V_TYPE_P2PKHCOMPRESSED,
+        pubkey_err: false,
+    }));
+
+    config.custom_extension_witnesses = Some(vec![WitnessArgsBuilder::default()
+        .lock(Some(Bytes::from([0u8; 65].to_vec())).pack())
+        .build()
+        .as_bytes()]);
+
+    let tx = gen_tx(&mut data_loader, &mut config);
+    let tx = sign_tx(&mut data_loader, tx, &mut config);
+    let resolved_tx = build_resolved_tx(&data_loader, &tx);
+
+    let mut verifier = verify_tx(resolved_tx, data_loader);
+    verifier.set_debug_printer(debug_printer);
+    let verify_result = verifier.verify(MAX_CYCLES);
+    verify_result.expect("pass verification");
+}
+
+#[test]
+fn test_cobuild_other_cobuild_witness_layout() {
+    let mut data_loader = DummyDataLoader::new();
+
+    let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
+    config.cobuild_enabled = true;
+    config.set_chain_config(Box::new(BitcoinConfig {
+        sign_vtype: BITCOIN_V_TYPE_P2PKHCOMPRESSED,
+        pubkey_err: false,
+    }));
+
+    config.custom_extension_witnesses = Some(vec![WitnessLayoutBuilder::default()
+        .set(WitnessLayoutUnion::SighashAllOnly(
+            SighashAllOnlyBuilder::default()
+                .seal(Bytes::from([0u8; 32].to_vec()).pack())
+                .build(),
+        ))
+        .build()
+        .as_bytes()]);
+
+    let tx = gen_tx(&mut data_loader, &mut config);
+    let tx = sign_tx(&mut data_loader, tx, &mut config);
+    let resolved_tx = build_resolved_tx(&data_loader, &tx);
+
+    let mut verifier = verify_tx(resolved_tx, data_loader);
+    verifier.set_debug_printer(debug_printer);
+    let verify_result = verifier.verify(MAX_CYCLES);
+    verify_result.expect("pass verification");
+}
+
+#[test]
+fn test_cobuild_sighashall_dup() {
+    let mut data_loader = DummyDataLoader::new();
+
+    let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
+    config.cobuild_enabled = true;
+    config.set_chain_config(Box::new(BitcoinConfig {
+        sign_vtype: BITCOIN_V_TYPE_P2PKHCOMPRESSED,
+        pubkey_err: false,
+    }));
+
+    const WSITNESS_LAYOUT_SIGHASH_ALL: u32 = 4278190081;
+    let mut witness = Vec::new();
+    witness.resize(6, 0);
+    witness[..4].copy_from_slice(&WSITNESS_LAYOUT_SIGHASH_ALL.to_le_bytes());
+
+    config.custom_extension_witnesses = Some(vec![Bytes::from(witness)]);
+
+    let tx = gen_tx(&mut data_loader, &mut config);
+    let tx = sign_tx(&mut data_loader, tx, &mut config);
+    let resolved_tx = build_resolved_tx(&data_loader, &tx);
+
+    let mut verifier = verify_tx(resolved_tx, data_loader);
+    verifier.set_debug_printer(debug_printer);
+    let verify_result = verifier.verify(MAX_CYCLES);
+    assert_script_error(verify_result.unwrap_err(), MOL2_ERR_OVERFLOW);
+    //
 }
