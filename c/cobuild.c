@@ -287,46 +287,40 @@ static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
 int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
                       uint8_t *data_source, size_t cache_len) {
   int err = ERROR_GENERAL;
-  int message_count = 0;
+  *has_message = false;
   for (size_t index = 0;; index++) {
-    mol2_cursor_t cursor;
-    /*
-     The cursor should be valid after function returns. A memory with longer
-     lifetime is required.
-    */
-    err = ckb_new_witness_cursor(&cursor, data_source, cache_len, index,
-                                 CKB_SOURCE_INPUT);
+    uint32_t id = 0;
+    uint64_t len = sizeof(id);
+    err = ckb_load_witness(&id, &len, 0, index, CKB_SOURCE_INPUT);
     if (err == CKB_INDEX_OUT_OF_BOUND) {
       err = 0;
       break;
     }
     CHECK(err);
-
-    uint32_t id = 0;
-    err = try_union_unpack_id(&cursor, &id);
-    if (err) {
-      // it might be WitnessArgs layout and it is allowed in cobuild
-      err = 0;  // reset error
-      continue;
-    } else {
-      if (id == WitnessLayoutSighashAll) {
-        mol2_union_t uni = mol2_union_unpack(&cursor);
-        /* See molecule defintion, the index is 0:
-        table SighashAll {
-          message: Message,
-          seal: Bytes,
-        }
-        */
-        *message_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
-        message_count++;
-        // joii
-        CHECK2(message_count <= 1, ERROR_SIGHASHALL_DUP);
+    if (len >= sizeof(id) && id == WitnessLayoutSighashAll) {
+      // joii
+      CHECK2(!*has_message, ERROR_SIGHASHALL_DUP);
+      *has_message = true;
+      mol2_cursor_t cursor = {0};
+      err = ckb_new_witness_cursor(&cursor, data_source, cache_len, index,
+                                   CKB_SOURCE_INPUT);
+      CHECK(err);
+      mol2_union_t uni = mol2_union_unpack(&cursor);
+      /* See molecule defintion, the index is 0:
+      table SighashAll {
+        message: Message,
+        seal: Bytes,
       }
+      */
+      *message_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
+    } else {
+      // there are some possibilities:
+      // 1. an invalid witness (e.g. empty)
+      // 2. WitnessArgs
+      // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
+      // joii
     }
   }
-  // joii
-  *has_message = message_count > 0;
-
 exit:
   return err;
 }

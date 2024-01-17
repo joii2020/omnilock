@@ -677,13 +677,13 @@ fn test_binary_unchanged() {
 
     let actual_hash = faster_hex::hex_string(&hash);
     assert_eq!(
-        "924c9e5840954b9856ba8dc8d5e735be3c180e36489071d15a7fc49c80f24bb3",
+        "eb9483b29855bdafcad85595f02644f548e9094c24d544eeb51cd26ee2ecf14a",
         &actual_hash
     );
 }
 
 #[test]
-fn test_try_union_unpack_id_by_defualt() {
+fn test_try_union_unpack_id_by_default() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -724,5 +724,5 @@ fn test_try_union_unpack_id_by_cobuild() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    assert_script_error(verify_result.unwrap_err(), ERROR_COBUILD_MOL2_ERR_DATA)
+    verify_result.expect("pass verification");
 }
