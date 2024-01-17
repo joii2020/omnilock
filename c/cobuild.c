@@ -281,6 +281,8 @@ static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
   uint32_t len = mol2_read_at(cursor, (uint8_t *)id, 4);
   if (len != 4) {
     // joii
+    // test_cobuild_try_union_unpack_id
+    // test_cobuild_try_union_unpack_id2
     return MOL2_ERR_DATA;
   }
   return CKB_SUCCESS;

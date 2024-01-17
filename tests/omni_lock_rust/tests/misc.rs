@@ -813,6 +813,20 @@ pub fn sign_tx_by_input_group(
     if preimage_hash.len() == 20 {
         write_back_preimage_hash(dummy, IDENTITY_FLAGS_DL, preimage_hash);
     }
+
+    for ssws in &signed_witnesses {
+        println!("ws {}: {:02x?}", ssws.len(), ssws.as_bytes().to_vec());
+    }
+
+    match &config.custom_extension_witnesses_beginning {
+        Some(ws) => {
+            let mut ws: Vec<ckb_types::packed::Bytes> = ws.iter().map(|f| f.pack()).collect();
+            ws.extend_from_slice(&signed_witnesses);
+            signed_witnesses = ws;
+        }
+        _ => {}
+    }
+
     // calculate message
     tx.as_advanced_builder()
         .set_witnesses(signed_witnesses)
@@ -1011,15 +1025,19 @@ pub fn gen_tx_with_grouped_args(
         }
     }
 
+    let mut tx = tx_builder.build();
+
     match &config.custom_extension_witnesses {
         Some(ws) => {
-            for w in ws {
-                tx_builder = tx_builder.witness(w.pack());
-            }
+            let mut tx_ws: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().collect();
+            let ws: Vec<ckb_types::packed::Bytes> = ws.iter().map(|f| f.pack()).collect();
+            tx_ws.extend_from_slice(&ws);
+            tx = tx.as_advanced_builder().set_witnesses(tx_ws).build();
         }
         _ => {}
     };
-    tx_builder.build()
+
+    tx
 }
 
 pub fn sign_tx_hash(tx: TransactionView, tx_hash: &[u8], config: &TestConfig) -> TransactionView {
@@ -1517,6 +1535,7 @@ pub struct TestConfig {
     pub cobuild_enabled: bool,
     pub cobuild_message: Option<Message>,
     pub custom_extension_witnesses: Option<Vec<Bytes>>,
+    pub custom_extension_witnesses_beginning: Option<Vec<Bytes>>,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -1618,6 +1637,7 @@ impl TestConfig {
             cobuild_enabled: false,
             cobuild_message: Some(Message::default()),
             custom_extension_witnesses: None,
+            custom_extension_witnesses_beginning: None,
         }
     }
 
