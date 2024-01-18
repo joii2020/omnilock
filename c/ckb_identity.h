@@ -640,8 +640,11 @@ int convert_tron_message(const uint8_t *msg, size_t msg_len, uint8_t *new_msg,
   tron_prefix[0] = 0x19;
   memcpy(tron_prefix + 1, "TRON Signed Message:\n32", 23);
 
+  uint8_t temp[64];
+  bin_to_hex(msg, temp, 32);
+
   keccak_update(&sha3_ctx, tron_prefix, 24);
-  keccak_update(&sha3_ctx, (unsigned char *)msg, 32);
+  keccak_update(&sha3_ctx, (unsigned char *)temp, 64);
   keccak_final(&sha3_ctx, new_msg);
   return 0;
 }

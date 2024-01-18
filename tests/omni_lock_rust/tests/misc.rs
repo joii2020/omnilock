@@ -1397,7 +1397,7 @@ impl ChainConfig for TronConfig {
         let eth_prefix: &[u8; 24] = b"\x19TRON Signed Message:\n32";
         let mut hasher = Keccak256::new();
         hasher.update(eth_prefix);
-        hasher.update(message);
+        hasher.update(hex::encode(message));
         let r = hasher.finalize();
         let rr = CkbH256::from_slice(r.as_slice()).expect("convert_keccak256_hash");
         rr
