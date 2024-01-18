@@ -684,7 +684,7 @@ fn test_binary_unchanged() {
 }
 
 #[test]
-fn test_no_cobuild_add_witness() {
+fn tested_by_no_has_message() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -706,7 +706,7 @@ fn test_no_cobuild_add_witness() {
 }
 
 #[test]
-fn test_cobuild_invaild_witness() {
+fn tested_by_append_witnessed_less_than_4() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -959,7 +959,7 @@ fn test_sighash_all_only() {
 
 
 #[test]
-fn test_cobuild_add_witnessargs() {
+fn tested_by_append_witnessargs() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -985,7 +985,7 @@ fn test_cobuild_add_witnessargs() {
 }
 
 #[test]
-fn test_cobuild_other_cobuild_witness_layout() {
+fn tested_by_append_other_witnesslayout() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1015,7 +1015,7 @@ fn test_cobuild_other_cobuild_witness_layout() {
 }
 
 #[test]
-fn test_cobuild_sighashall_dup() {
+fn tested_by_sighashall_dup() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1044,7 +1044,7 @@ fn test_cobuild_sighashall_dup() {
 }
 
 #[test]
-fn test_cobuild_try_union_unpack_id() {
+fn tested_by_no_cobuild_append_sighash_all() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1076,7 +1076,7 @@ fn test_cobuild_try_union_unpack_id() {
 }
 
 #[test]
-fn test_cobuild_try_union_unpack_id2() {
+fn tested_by_insert_witness_less_4_before_sighashall() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
