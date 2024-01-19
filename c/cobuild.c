@@ -280,9 +280,9 @@ int ckb_hash_cursor(blake2b_state *ctx, mol2_cursor_t cursor) {
 static uint32_t try_union_unpack_id(const mol2_cursor_t *cursor, uint32_t *id) {
   uint32_t len = mol2_read_at(cursor, (uint8_t *)id, 4);
   if (len != 4) {
-    // joii
-    // tested_by_no_cobuild_append_sighash_all
-    // tested_by_insert_witness_less_4_before_sighashall
+    // tested by:
+    //  tested_by_no_cobuild_append_sighash_all
+    //  tested_by_insert_witness_less_4_before_sighashall
     return MOL2_ERR_DATA;
   }
   return CKB_SUCCESS;
@@ -302,8 +302,8 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
     }
     CHECK(err);
     if (len >= sizeof(id) && id == WitnessLayoutSighashAll) {
-      // joii
-      // tested_by_sighashall_dup
+      // tested by:
+      //  tested_by_sighashall_dup
       CHECK2(!*has_message, ERROR_SIGHASHALL_DUP);
       *has_message = true;
       mol2_cursor_t cursor = {0};
@@ -323,10 +323,10 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
         // 1. an invalid witness (e.g. empty)
         // 2. WitnessArgs
         // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
-        // joii
-        // tested_by_append_witnessed_less_than_4
-        // tested_by_append_witnessargs
-        // tested_by_append_other_witnesslayout
+        // tested by:
+        //  tested_by_append_witnessed_less_than_4
+        //  tested_by_append_witnessargs
+        //  tested_by_append_other_witnesslayout
     }
   }
 exit:
@@ -391,8 +391,8 @@ int ckb_generate_signing_message_hash(bool has_message,
     ckb_hash_cursor(&ctx, message_cursor);
     count += message_cursor.size;
   } else {
-    // joii
-    // tested_by_no_has_message
+    // tested by:
+    //  tested_by_no_has_message
     new_sighash_all_only_blake2b(&ctx);
   }
 
