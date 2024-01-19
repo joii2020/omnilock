@@ -181,7 +181,7 @@ int ckb_check_others_in_group() {
       break;
     }
     CHECK(err);
-    // mohanson
+    // tested by test_non_empty_witness
     CHECK2(witness_len == 0, ERROR_NONEMPTY_WITNESS);
   }
 
@@ -257,7 +257,11 @@ exit:
 
 int ckb_hash_cursor(blake2b_state *ctx, mol2_cursor_t cursor) {
   // one batch to drain whole cache perfectly
-  // mohanson: cell data, 0, 1, 2048, 2049, 500k
+  // tested by test_input_cell_data_size_0
+  //           test_input_cell_data_size_1
+  //           test_input_cell_data_size_2048
+  //           test_input_cell_data_size_2049
+  //           test_input_cell_data_size_500k
   uint8_t batch[MAX_CACHE_SIZE];
   while (true) {
     uint32_t read_len = mol2_read_at(&cursor, batch, sizeof(batch));
@@ -350,14 +354,15 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
     table SighashAllOnly {
       seal: Bytes,
     }
+    tested by test_sighash_all_only
   */
     mol2_union_t uni = mol2_union_unpack(&cursor);
     *seal_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
   } else {
     // the union id should be SighashAll or SighashAllOnly. otherwise, it fails
     // and mark it as non cobuild.
-    // mohanson
-    printf("error in fetch_seal, id = %d", id);
+    // tested by test_wrong_union_id
+    printf("error in fetch_seal, id = %u", id);
     CHECK2(false, ERROR_SIGHASHALL_NOSEAL);
   }
 
@@ -377,7 +382,7 @@ int ckb_generate_signing_message_hash(bool has_message,
   size_t count = 0;
   // use different hash based on message
   if (has_message) {
-    // mohanson
+    // tested by test_input_cell_data_size_0
     new_sighash_all_blake2b(&ctx);
     ckb_hash_cursor(&ctx, message_cursor);
     count += message_cursor.size;
@@ -453,7 +458,7 @@ int ckb_parse_message(uint8_t *signing_message_hash, mol2_cursor_t *seal) {
   int err = ERROR_GENERAL;
 
   err = ckb_check_others_in_group();
-  // mohanson
+  // tested by test_non_empty_witness
   CHECK(err);
   bool has_message = false;
   mol2_cursor_t message;
