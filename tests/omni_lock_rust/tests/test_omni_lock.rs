@@ -566,6 +566,18 @@ fn test_btc_unlock() {
 
 #[test]
 fn test_dogecoin_unlock() {
+    // >dogecoin-cli.exe getaddressesbyaccount ""
+    // [
+    //     "D8GYB1Z26WM7gLWjwgjVUkTCbACF5WZmR1"
+    // ]
+    // public key hash: 2250afdded7e865266ee59da9c982147745905da]
+
+    // message : ee35d0d643c3fbaa77db7ce37e09dc9ce4459ba80869844e47101d21f6c4fc39
+    // >dogecoin-cli signmessage D8GYB1Z26WM7gLWjwgjVUkTCbACF5WZmR1 ee35d0d643c3fbaa77db7ce37e09dc9ce4459ba80869844e47101d21f6c4fc39
+    //  IPvAuiNs737jLesQIAPFGMH6rBd0khObY4EhCukZWnoLfUv9KNNg8inSqnPruhIHXnMmZaHAs5yjsz4HG52AE5g=
+
+    // sign hex: 20fbc0ba236cef7ee32deb102003c518c1faac177492139b6381210ae9195a7a0b7d4bfd28d360f229d2aa73ebba12075e732665a1c0b39ca3b33e071b9d801398
+
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_DOGECOIN, false);
