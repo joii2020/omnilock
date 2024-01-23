@@ -371,6 +371,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-mock-tx-types"
+version = "0.113.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d39b8c8e0ff4f5ed067328caca87a883c3356466eb8c1f7dd10d9f139d9c7f6e"
+dependencies = [
+ "ckb-jsonrpc-types",
+ "ckb-traits",
+ "ckb-types",
+ "serde",
+]
+
+[[package]]
 name = "ckb-occupied-capacity"
 version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1174,6 +1186,7 @@ dependencies = [
  "ckb-crypto",
  "ckb-error",
  "ckb-hash",
+ "ckb-mock-tx-types",
  "ckb-script",
  "ckb-traits",
  "ckb-types",
@@ -1187,6 +1200,7 @@ dependencies = [
  "openssl",
  "rand 0.6.5",
  "ripemd",
+ "serde_json",
  "sha2",
  "sha3",
  "sparse-merkle-tree",

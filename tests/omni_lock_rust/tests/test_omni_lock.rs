@@ -432,6 +432,12 @@ fn test_eth_unlock() {
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
 
+    std::fs::write(
+        format!("tx_eth.json"),
+        serde_json::to_string(&dump_tx(&resolved_tx)).unwrap(),
+    )
+    .expect("write txjson failed");
+
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);

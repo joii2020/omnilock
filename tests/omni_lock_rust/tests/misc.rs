@@ -10,6 +10,7 @@ use std::convert::TryInto;
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::Error;
 use ckb_hash::{Blake2b, Blake2bBuilder};
+use ckb_mock_tx_types::{MockCellDep, MockInfo, MockInput, MockTransaction, ReprMockTransaction};
 use ckb_script::TxVerifyEnv;
 use ckb_traits::{CellDataProvider, ExtensionProvider, HeaderProvider};
 use ckb_types::bytes::{BufMut, BytesMut};
@@ -22,8 +23,8 @@ use ckb_types::{
     },
     molecule,
     packed::{
-        self, Byte32, CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs,
-        WitnessArgsBuilder,
+        self, Byte32, CellDep, CellDepBuilder, CellInput, CellOutput, OutPoint, Script,
+        WitnessArgs, WitnessArgsBuilder,
     },
     prelude::*,
     H256 as CkbH256,
@@ -2181,4 +2182,61 @@ pub fn cobuild_generate_signing_message_hash(
     let mut result = [0u8; 32];
     hasher.finalize(&mut result);
     result
+}
+
+pub fn dump_tx(rtx: &ResolvedTransaction) -> ReprMockTransaction {
+    let mut inputs = Vec::with_capacity(rtx.resolved_inputs.len());
+    // We are doing it this way so we can keep original since value is available
+    for (i, input) in rtx.resolved_inputs.iter().enumerate() {
+        inputs.push(MockInput {
+            input: rtx.transaction.inputs().get(i).unwrap(),
+            output: input.cell_output.clone(),
+            data: input.mem_cell_data.clone().unwrap(),
+            header: input.transaction_info.clone().map(|info| info.block_hash),
+        });
+    }
+    // MockTransaction keeps both types of cell deps in a single array, the order does
+    // not really matter for now
+    let mut cell_deps =
+        Vec::with_capacity(rtx.resolved_cell_deps.len() + rtx.resolved_dep_groups.len());
+    for dep in rtx.resolved_cell_deps.iter() {
+        cell_deps.push(MockCellDep {
+            cell_dep: CellDepBuilder::default()
+                .out_point(dep.out_point.clone())
+                .dep_type(DepType::Code.into())
+                .build(),
+            output: dep.cell_output.clone(),
+            data: dep.mem_cell_data.clone().unwrap(),
+            header: None,
+        });
+    }
+    for dep in rtx.resolved_dep_groups.iter() {
+        cell_deps.push(MockCellDep {
+            cell_dep: CellDepBuilder::default()
+                .out_point(dep.out_point.clone())
+                .dep_type(DepType::DepGroup.into())
+                .build(),
+            output: dep.cell_output.clone(),
+            data: dep.mem_cell_data.clone().unwrap(),
+            header: None,
+        });
+    }
+    // let mut header_deps = Vec::with_capacity(rtx.transaction.header_deps().len());
+    // let mut extensions = Vec::new();
+    // for header_hash in rtx.transaction.header_deps_iter() {
+    //     header_deps.push(self.get_header(&header_hash).unwrap());
+    //     if let Some(extension) = self.get_block_extension(&header_hash) {
+    //         extensions.push((header_hash, extension.unpack()));
+    //     }
+    // }
+    MockTransaction {
+        mock_info: MockInfo {
+            inputs,
+            cell_deps,
+            header_deps: Vec::new(),
+            extensions: Vec::new(),
+        },
+        tx: rtx.transaction.data(),
+    }
+    .into()
 }
