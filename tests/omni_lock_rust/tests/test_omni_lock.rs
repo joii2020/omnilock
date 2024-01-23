@@ -678,13 +678,13 @@ fn test_binary_unchanged() {
 
     let actual_hash = faster_hex::hex_string(&hash);
     assert_eq!(
-        "1ccec8cb13993eaa3a9cf3c6fd9a9855874dd4711dcfebc5467ec13c0ab5136c",
+        "519b7adaa5a4b585d15aa14fe605d55b2e71235b8c4868784a3553d4d034a929",
         &actual_hash
     );
 }
 
 #[test]
-fn tested_by_no_has_message() {
+fn test_cobuild_no_has_message() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -706,7 +706,7 @@ fn tested_by_no_has_message() {
 }
 
 #[test]
-fn tested_by_append_witnessed_less_than_4() {
+fn test_cobuild_append_witnessed_less_than_4() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -733,7 +733,7 @@ fn tested_by_append_witnessed_less_than_4() {
 }
 
 #[test]
-fn test_non_empty_witness() {
+fn test_cobuild_non_empty_witness() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -756,7 +756,7 @@ fn test_non_empty_witness() {
 }
 
 #[test]
-fn test_input_cell_data_size_0() {
+fn test_cobuild_input_cell_data_size_0() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -777,7 +777,7 @@ fn test_input_cell_data_size_0() {
 }
 
 #[test]
-fn test_input_cell_data_size_1() {
+fn test_cobuild_input_cell_data_size_1() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -808,7 +808,7 @@ fn test_input_cell_data_size_1() {
 }
 
 #[test]
-fn test_input_cell_data_size_2048() {
+fn test_cobuild_input_cell_data_size_2048() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -839,7 +839,7 @@ fn test_input_cell_data_size_2048() {
 }
 
 #[test]
-fn test_input_cell_data_size_2049() {
+fn test_cobuild_input_cell_data_size_2049() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -870,7 +870,7 @@ fn test_input_cell_data_size_2049() {
 }
 
 #[test]
-fn test_input_cell_data_size_500k() {
+fn test_cobuild_input_cell_data_size_500k() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -904,7 +904,7 @@ fn test_input_cell_data_size_500k() {
 }
 
 #[test]
-fn test_wrong_union_id() {
+fn test_cobuild_wrong_union_id() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -935,7 +935,7 @@ fn test_wrong_union_id() {
 }
 
 #[test]
-fn test_sighash_all_only() {
+fn test_cobuild_sighash_all_only() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -957,7 +957,7 @@ fn test_sighash_all_only() {
 }
 
 #[test]
-fn tested_by_append_witnessargs() {
+fn test_cobuild_append_witnessargs() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -983,7 +983,7 @@ fn tested_by_append_witnessargs() {
 }
 
 #[test]
-fn tested_by_append_other_witnesslayout() {
+fn test_cobuild_append_other_witnesslayout() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1013,7 +1013,7 @@ fn tested_by_append_other_witnesslayout() {
 }
 
 #[test]
-fn tested_by_sighashall_dup() {
+fn test_cobuild_sighashall_dup() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1041,7 +1041,7 @@ fn tested_by_sighashall_dup() {
 }
 
 #[test]
-fn tested_by_no_cobuild_append_sighash_all() {
+fn test_cobuild_no_cobuild_append_sighash_all() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1073,7 +1073,7 @@ fn tested_by_no_cobuild_append_sighash_all() {
 }
 
 #[test]
-fn tested_by_insert_witness_less_4_before_sighashall() {
+fn test_cobuild_insert_witness_less_4_before_sighashall() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1096,7 +1096,7 @@ fn tested_by_insert_witness_less_4_before_sighashall() {
 }
 
 #[test]
-fn test_big_message() {
+fn test_cobuild_big_message() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1256,7 +1256,7 @@ fn test_cobuild_rsa_via_dl_unlock_with_time_lock_failed() {
 }
 
 #[test]
-fn tested_by_append_witnessargs_acp() {
+fn test_cobuild_append_witnessargs_acp() {
     let mut data_loader: DummyDataLoader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1283,7 +1283,7 @@ fn tested_by_append_witnessargs_acp() {
 }
 
 #[test]
-fn tested_by_append_witnessargs_since() {
+fn test_cobuild_append_witnessargs_since() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
@@ -1313,7 +1313,7 @@ fn tested_by_append_witnessargs_since() {
 }
 
 #[test]
-fn tested_by_append_other_witnesslayout_acp() {
+fn test_cobuild_append_other_witnesslayout_acp() {
     let mut data_loader = DummyDataLoader::new();
 
     let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);

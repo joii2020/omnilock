@@ -2,7 +2,6 @@
 This is an implementation in C of cobuild. See reference implementation in Rust:
 https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transaction-cobuild/src/lib.rs
 */
-#define CKB_C_STDLIB_PRINTF
 // clang-format off
 #define CKB_DECLARATION_ONLY
 #include <stddef.h>
@@ -119,8 +118,8 @@ int blake2b_update_debug(blake2b_state *S, const void *pin, size_t inlen) {
 
 #else
 
-void print_raw_data(const char *name, uint8_t *data, size_t len);
-void print_cursor(const char *name, mol2_cursor_t cursor);
+void print_raw_data(const char *name, uint8_t *data, size_t len) {}
+void print_cursor(const char *name, mol2_cursor_t cursor) {}
 #define BLAKE2B_UPDATE blake2b_update
 
 #endif
@@ -319,14 +318,14 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
       */
       *message_cursor = mol2_table_slice_by_index(&uni.cursor, 0);
     } else {
-        // there are some possibilities:
-        // 1. an invalid witness (e.g. empty)
-        // 2. WitnessArgs
-        // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
-        // tested by:
-        //  tested_by_append_witnessed_less_than_4
-        //  tested_by_append_witnessargs
-        //  tested_by_append_other_witnesslayout
+      // there are some possibilities:
+      // 1. an invalid witness (e.g. empty)
+      // 2. WitnessArgs
+      // 3. Other cobuild WitnessLayout(e.g. SighashAllOnly)
+      // tested by:
+      //  tested_by_append_witnessed_less_than_4
+      //  tested_by_append_witnessargs
+      //  tested_by_append_other_witnesslayout
     }
   }
 exit:
