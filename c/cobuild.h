@@ -7,10 +7,10 @@
 
 #include "molecule2_reader.h"
 
-/**
- * return non-zero if the transaction doesn't have cobuild support.
- * signing_message_hash: signing message hash
- * seal: the seal. Same as WitnessArgs.lock with new name.
- */
-int ckb_parse_message(uint8_t *signing_message_hash, mol2_cursor_t *seal);
+typedef int (*ScriptEntryType)(const uint8_t* signing_message_hash,
+                               mol2_cursor_t seal, bool cobuild_enabled,
+                               bool witness_existing);
+int ckb_cobuild_entry(ScriptEntryType entry);
+int ckb_cobuild_normal_entry(ScriptEntryType entry);
+
 #endif

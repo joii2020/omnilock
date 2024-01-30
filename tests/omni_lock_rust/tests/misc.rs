@@ -815,9 +815,6 @@ pub fn sign_tx_by_input_group(
     for i in signed_witnesses.len()..tx.witnesses().len() {
         signed_witnesses.push(tx.witnesses().get(i).unwrap());
     }
-    if config.scheme2 == TestScheme2::NoWitness {
-        signed_witnesses.clear();
-    }
     if preimage_hash.len() == 20 {
         write_back_preimage_hash(dummy, IDENTITY_FLAGS_DL, preimage_hash);
     }
@@ -2179,10 +2176,11 @@ pub fn cobuild_generate_signing_message_hash(
     let inputs_len = tx.inputs().len();
     for i in 0..inputs_len {
         let input_cell = tx.inputs().get(i).unwrap();
-        hasher.update(&input_cell.as_slice());
-        count += input_cell.as_slice().len();
         let input_cell_out_point = input_cell.previous_output();
-        let (_, input_cell_data) = data_loader.cells.get(&input_cell_out_point).unwrap();
+        let (input_cell, input_cell_data) = data_loader.cells.get(&input_cell_out_point).unwrap();
+        hasher.update(input_cell.as_slice());
+        count += input_cell.as_slice().len();
+        
         hasher.update(&(input_cell_data.len() as u32).to_le_bytes());
         count += 4;
         hasher.update(input_cell_data);
