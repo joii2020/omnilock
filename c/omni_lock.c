@@ -98,7 +98,7 @@ typedef struct WitnessLockType {
   SmtProofEntryVecType proofs;
 } WitnessLockType;
 
-uint8_t code_buff[MAX_CODE_SIZE] __attribute__((aligned(RISCV_PGSIZE)));
+uint8_t g_code_buff[MAX_CODE_SIZE] __attribute__((aligned(RISCV_PGSIZE)));
 
 // make compiler happy
 int make_cursor_from_witness(WitnessArgsType *witness, bool *_input) {
@@ -315,14 +315,11 @@ exit:
 }
 
 static int parse_witness_lock(WitnessLockType *witness_lock,
-                              mol2_cursor_t *seal, bool witness_existing) {
+                              mol2_cursor_t *seal) {
   int err = 0;
   witness_lock->has_signature = false;
   witness_lock->has_identity = false;
   witness_lock->has_proofs = false;
-  if (!witness_existing) {
-    return 0;
-  }
   // convert Bytes to OmniLockWitnessLock
   OmniLockWitnessLockType mol_witness_lock = make_OmniLockWitnessLock(seal);
   IdentityOptType identity_opt =
@@ -393,8 +390,11 @@ int omnilock_entry(const uint8_t *smh, mol2_cursor_t seal, bool cobuild_enabled,
   // this identity can be either from witness lock (witness_lock.id) or script
   // args (args.id)
   CkbIdentityType identity = {0};
-  err = parse_witness_lock(&witness_lock, &seal, witness_existing);
-  CHECK(err);
+  // In some scenarios(e.g. owner lock), corresponding witness doesn't exist
+  if (witness_existing) {
+    err = parse_witness_lock(&witness_lock, &seal);
+    CHECK(err);
+  }
 
   err = parse_args(&args);
   CHECK(err);
@@ -445,7 +445,7 @@ int omnilock_entry(const uint8_t *smh, mol2_cursor_t seal, bool cobuild_enabled,
       return check_payment_unlock(min_ckb_amount, min_udt_amount);
     }
   }
-  ckb_identity_init_code_buffer(code_buff, MAX_CODE_SIZE);
+  ckb_identity_init_code_buffer(g_code_buff, MAX_CODE_SIZE);
   err = ckb_verify_identity(&identity, witness_lock.signature,
                             witness_lock.signature_size, witness_lock.preimage,
                             witness_lock.preimage_size, smh);

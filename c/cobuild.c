@@ -32,6 +32,7 @@ https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transactio
 
 #define BLAKE2B_BLOCK_SIZE 32
 #define MAX_CELL_SIZE 8192
+#define MAX_TYPESCRIPT_COUNT 512
 
 #define CHECK2(cond, code)                                               \
   do {                                                                   \
@@ -66,6 +67,7 @@ enum CobuildErrorCode {
   ERROR_SEAL,
   ERROR_FLOW,
   ERROR_OTX_START_DUP,
+  ERROR_WRONG_OTX,
 };
 
 enum WitnessLayoutId {
@@ -97,7 +99,8 @@ const char *PERSONAL_SIGHASH_ALL = "ckb-tcob-sighash";
 const char *PERSONAL_SIGHASH_ALL_ONLY = "ckb-tcob-sgohash";
 const char *PERSONAL_OTX = "ckb-tcob-otxhash";
 
-#define MAX_TYPESCRIPT_COUNT 512
+// forward declaration
+int ckb_calculate_inputs_len();
 
 /*
   The seal cursor uses this data source. So the lifetime of data source should
@@ -138,8 +141,8 @@ void print_cursor(const char *name, mol2_cursor_t cursor) {
 }
 
 // After being enabled, there will be a lot of logs.
-#define BLAKE2B_UPDATE blake2b_update_debug
-// #define BLAKE2B_UPDATE blake2b_update
+// #define BLAKE2B_UPDATE blake2b_update_debug
+#define BLAKE2B_UPDATE blake2b_update
 int blake2b_update_debug(blake2b_state *S, const void *pin, size_t inlen) {
   blake2b_update(S, pin, inlen);
   print_raw_data("blake2b_update: ", (uint8_t *)pin, inlen);
@@ -504,8 +507,8 @@ static int hash_cell(blake2b_state *ctx, size_t index, size_t source,
   BLAKE2B_UPDATE(ctx, &cell_data_len, 4);
   (*count) += 4;
   err = ckb_hash_cursor(ctx, cell_data_cursor);
-  (*count) += cell_data_cursor.size;
   CHECK(err);
+  (*count) += cell_data_cursor.size;
 
 exit:
   return err;
@@ -733,10 +736,11 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
 
   err = ckb_hash_cursor(&ctx, message_cursor);
   CHECK(err);
+  count += message_cursor.size;
 
-  uint32_t inputs_len = size->input_cells;
-  BLAKE2B_UPDATE(&ctx, &inputs_len, sizeof(inputs_len));
-  count += sizeof(inputs_len);
+  BLAKE2B_UPDATE(&ctx, &size->input_cells, 4);
+  count += 4;
+
   // hash input cell and data
   for (size_t index = start->start_input_cell;
        index < (start->start_input_cell + size->input_cells); index++) {
@@ -752,9 +756,8 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
     CHECK(err);
   }
   // hash output cell and data
-  uint32_t outputs_len = size->output_cells;
-  BLAKE2B_UPDATE(&ctx, &outputs_len, sizeof(outputs_len));
-  count += sizeof(outputs_len);
+  BLAKE2B_UPDATE(&ctx, &size->output_cells, 4);
+  count += 4;
   for (size_t index = start->start_output_cell;
        index < (start->start_output_cell + size->output_cells); index++) {
     err = hash_cell(&ctx, index, CKB_SOURCE_OUTPUT, &count);
@@ -762,9 +765,8 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
   }
 
   // hash cell deps
-  uint32_t celldeps_len = size->cell_deps;
-  BLAKE2B_UPDATE(&ctx, &celldeps_len, sizeof(celldeps_len));
-  count += sizeof(celldeps_len);
+  BLAKE2B_UPDATE(&ctx, &size->cell_deps, 4);
+  count += 4;
 
   for (size_t index = start->start_cell_deps;
        index < (start->start_cell_deps + size->cell_deps); index++) {
@@ -778,9 +780,8 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
   }
 
   // hash header deps
-  uint32_t headerdeps_len = size->header_deps;
-  BLAKE2B_UPDATE(&ctx, &headerdeps_len, sizeof(headerdeps_len));
-  count += sizeof(headerdeps_len);
+  BLAKE2B_UPDATE(&ctx, &size->header_deps, 4);
+  count += 4;
   for (size_t index = start->start_header_deps;
        index < (start->start_header_deps + size->header_deps); index++) {
     uint8_t header_dep[32];
@@ -794,6 +795,25 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
   printf("ckb_generate_otx_smh totally hashed %d bytes", count);
 exit:
   return err;
+}
+
+static bool is_otx_witness(size_t index, bool *out_of_bounds) {
+  int err = 0;
+  uint32_t id = 0;
+  uint64_t id_len = sizeof(id);
+  *out_of_bounds = false;
+  err = ckb_load_witness(&id, &id_len, 0, index, CKB_SOURCE_INPUT);
+  if (err == CKB_INDEX_OUT_OF_BOUND) {
+    *out_of_bounds = true;
+    return false;
+  }
+  if (err) {
+    return false;
+  }
+  if (id_len < sizeof(id)) {
+    return false;
+  }
+  return id == WitnessLayoutOtx;
 }
 
 int ckb_cobuild_entry(ScriptEntryType callback) {
@@ -813,6 +833,7 @@ int ckb_cobuild_entry(ScriptEntryType callback) {
   bool has_otx = false;
   OtxStart otx_start = {0};
   // step 2
+  // step 4
   err = ckb_fetch_otx_start(&has_otx, &i, &otx_start);
   CHECK(err);
   if (!has_otx) {
@@ -828,17 +849,20 @@ int ckb_cobuild_entry(ScriptEntryType callback) {
   ce = cs;
   hs = otx_start.start_header_deps;
   he = hs;
-  for (size_t index = i + 1;; index++) {
+  size_t index = i + 1;
+  for (;; index++) {
     mol2_cursor_t cursor;
     err = ckb_new_witness_cursor(&cursor, g_cobuild_seal_data_source,
                                  MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
     if (err == CKB_INDEX_OUT_OF_BOUND) {
+      // step 6, not WitnessLayoutOtx
       break;
     }
     CHECK(err);
     uint32_t id = 0;
     err = try_union_unpack_id(&cursor, &id);
     if (err) {
+      // step 6, not WitnessLayoutOtx
       // maybe WitnessArgs or empty
       break;
     }
@@ -896,6 +920,7 @@ int ckb_cobuild_entry(ScriptEntryType callback) {
         if (memcmp(hash, current_script_hash, sizeof(hash)) == 0) {
           // step 6.f
           seal = loop_seal.t->seal(&loop_seal);
+          CHECK2(!seal_found, ERROR_SEAL);
           seal_found = true;
         }
       }
@@ -917,6 +942,46 @@ int ckb_cobuild_entry(ScriptEntryType callback) {
       break;
     }
   }  // end of step 6 loop
+
+  // step 7
+  size_t j = index;
+  // [0, i)
+  for (size_t index = 0; index < i; i++) {
+    bool out_of_bounds = false;
+    CHECK2(!is_otx_witness(index, &out_of_bounds), ERROR_WRONG_OTX);
+  }
+  // [j, +infinite]
+  for (size_t index = j;; index++) {
+    bool out_of_bounds = false;
+    CHECK2(!is_otx_witness(index, &out_of_bounds), ERROR_WRONG_OTX);
+    if (out_of_bounds) {
+      break;
+    }
+  }
+  // step 8
+  size_t inputs_len = ckb_calculate_inputs_len();
+  bool found = false;
+  for (size_t index = 0; index < inputs_len; index++) {
+    // scan all input cell in [0, is) and [ie, +infinity)
+    if (index < is || index >= ie) {
+      uint8_t hash[BLAKE2B_BLOCK_SIZE];
+      uint64_t len = BLAKE2B_BLOCK_SIZE;
+      err = ckb_load_cell_by_field(hash, &len, 0, j, CKB_SOURCE_INPUT,
+                                   CKB_CELL_FIELD_LOCK_HASH);
+      if (err == CKB_INDEX_OUT_OF_BOUND) {
+        break;
+      }
+      CHECK(err);
+      if (memcmp(hash, current_script_hash, sizeof(hash)) == 0) {
+        found = true;
+        break;
+      }
+    }
+  }
+  if (found) {
+    err = ckb_cobuild_normal_entry(callback);
+    CHECK(err);
+  }
 exit:
   return err;
 }
