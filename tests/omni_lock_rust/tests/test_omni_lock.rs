@@ -624,7 +624,7 @@ fn test_binary_unchanged() {
 
     let actual_hash = faster_hex::hex_string(&hash);
     assert_eq!(
-        "23ba6096d997b0f57eb473a26d593a268f6af393037e6ffd2052168ba6abb3e4",
+        "d6e6f41592efa84db97644313f717d13c60fe588103be9c0647e04774bbd6487",
         &actual_hash
     );
 }
@@ -698,7 +698,7 @@ fn test_cobuild_non_empty_witness() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    assert_script_error(verify_result.unwrap_err(), ERROR_MOL2_ERR_OVERFLOW);
+    assert_script_error(verify_result.unwrap_err(), 112);
 }
 
 #[test]
@@ -877,7 +877,7 @@ fn test_cobuild_wrong_union_id() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    assert_script_error(verify_result.unwrap_err(), ERROR_MOL2_ERR_OVERFLOW);
+    assert_script_error(verify_result.unwrap_err(), 114);
 }
 
 #[test]
@@ -983,7 +983,7 @@ fn test_cobuild_sighashall_dup() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    assert_script_error(verify_result.unwrap_err(), MOL2_ERR_OVERFLOW);
+    assert_script_error(verify_result.unwrap_err(), 113);
 }
 
 #[test]
@@ -1015,7 +1015,7 @@ fn test_cobuild_no_cobuild_append_sighash_all() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    verify_result.expect("pass verification");
+    assert_script_error(verify_result.unwrap_err(), 114)
 }
 
 #[test]

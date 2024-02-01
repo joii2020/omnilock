@@ -16,9 +16,9 @@ void debug_print_hex(const char* prefix, const uint8_t* buf, size_t length) {
   printf("\n");
 }
 
-int ckb_cobuild_entry(ScriptEntryType) {
-  // not cobuild
-  return 1;
+int ckb_cobuild_entry(ScriptEntryType, bool* cobuild_enabled) {
+  *cobuild_enabled = false;
+  return 0;
 }
 
 /* hex2bin modified from

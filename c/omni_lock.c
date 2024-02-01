@@ -381,7 +381,7 @@ exit:
   return err;
 }
 
-int omnilock_entry(const uint8_t *smh, mol2_cursor_t seal, bool cobuild_enabled,
+int omnilock_entry(const uint8_t *smh, mol2_cursor_t seal,
                    bool witness_existing) {
   int err = 0;
   ArgsType args = {0};
@@ -460,8 +460,11 @@ int simulator_main() {
 int main() {
 #endif
   int err = 0;
-  err = ckb_cobuild_entry(omnilock_entry);
-  if (err) {
+  bool cobuild_enabled = false;
+  err = ckb_cobuild_entry(omnilock_entry, &cobuild_enabled);
+  CHECK(err);
+  printf("cobuild_enabled = %d", cobuild_enabled);
+  if (!cobuild_enabled) {
     bool witness_existing = true;
     uint8_t smh[BLAKE2B_BLOCK_SIZE] = {0};
     mol2_cursor_t lock = {0};
@@ -471,7 +474,7 @@ int main() {
       err = generate_sighash_all(smh, BLAKE2B_BLOCK_SIZE);
       CHECK(err);
     }
-    err = omnilock_entry(smh, lock, false, witness_existing);
+    err = omnilock_entry(smh, lock, witness_existing);
     CHECK(err);
   }
 exit:
