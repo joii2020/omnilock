@@ -101,9 +101,6 @@ const char *PERSONAL_SIGHASH_ALL = "ckb-tcob-sighash";
 const char *PERSONAL_SIGHASH_ALL_ONLY = "ckb-tcob-sgohash";
 const char *PERSONAL_OTX = "ckb-tcob-otxhash";
 
-// forward declaration
-int ckb_calculate_inputs_len();
-
 /*
   The seal cursor uses this data source. So the lifetime of data source should
   be long enough.
@@ -201,46 +198,6 @@ int new_sighash_all_only_blake2b(blake2b_state *S) {
 
 int new_otx_blake2b(blake2b_state *S) {
   return ckb_blake2b_init_personal(S, 32, PERSONAL_OTX);
-}
-
-uint32_t ckb_calculate_outputs_len() {
-  uint32_t index = 0;
-  while (true) {
-    uint64_t len = 0;
-    int err = ckb_load_cell_by_field(NULL, &len, 0, index, CKB_SOURCE_OUTPUT,
-                                     CKB_CELL_FIELD_CAPACITY);
-    if (err) {
-      break;
-    }
-    index++;
-  }
-  return index;
-}
-
-uint32_t ckb_calculate_celldeps_len() {
-  uint32_t index = 0;
-  while (true) {
-    uint64_t len = 0;
-    int err = ckb_load_header(NULL, &len, 0, index, CKB_SOURCE_CELL_DEP);
-    if (err) {
-      break;
-    }
-    index++;
-  }
-  return index;
-}
-
-uint32_t ckb_calculate_headerdeps_len() {
-  uint32_t index = 0;
-  while (true) {
-    uint64_t len = 0;
-    int err = ckb_load_header(NULL, &len, 0, index, CKB_SOURCE_HEADER_DEP);
-    if (err) {
-      break;
-    }
-    index++;
-  }
-  return index;
 }
 
 // for lock script with message, the other witness in script group except first
@@ -1000,9 +957,8 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
   }
 
   // step 8
-  size_t inputs_len = ckb_calculate_inputs_len();
   bool found = false;
-  for (size_t index = 0; index < inputs_len; index++) {
+  for (size_t index = 0;; index++) {
     // scan all input cell in [0, is) and [ie, +infinity)
     // if is == ie, it is always true
     if (index < is || index >= ie) {
