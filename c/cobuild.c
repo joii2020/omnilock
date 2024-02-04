@@ -54,6 +54,13 @@ int ckb_exit(signed char);
     }                                                                    \
   } while (0)
 
+#define CHECK_LOOP(err)                \
+  if (err == CKB_INDEX_OUT_OF_BOUND) { \
+    err = 0;                           \
+    break;                             \
+  }                                    \
+  CHECK(err)
+
 enum CobuildErrorCode {
   // cobuild error code is from 110
   ERROR_GENERAL = 110,
@@ -206,11 +213,7 @@ int ckb_check_others_in_group() {
   for (size_t index = 1;; index++) {
     uint64_t witness_len = 0;
     err = ckb_load_witness(0, &witness_len, 0, index, CKB_SOURCE_GROUP_INPUT);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      err = CKB_SUCCESS;
-      break;
-    }
-    CHECK(err);
+    CHECK_LOOP(err);
     // tested by test_non_empty_witness
     CHECK2(witness_len == 0, ERROR_NONEMPTY_WITNESS);
   }
@@ -356,11 +359,8 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
     uint32_t id = 0;
     uint64_t len = sizeof(id);
     err = ckb_load_witness(&id, &len, 0, index, CKB_SOURCE_INPUT);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      err = 0;
-      break;
-    }
-    CHECK(err);
+    CHECK_LOOP(err);
+
     if (len >= sizeof(id) && id == WitnessLayoutSighashAll) {
       // tested by:
       //  tested_by_sighashall_dup
@@ -443,13 +443,11 @@ int ckb_fetch_otx_start(bool *has_otx, size_t *i, OtxStart *otx_start) {
     uint32_t id = 0;
     uint64_t len = sizeof(id);
     err = ckb_load_witness(&id, &len, 0, index, CKB_SOURCE_INPUT);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      err = 0;
-      break;
-    }
-    CHECK(err);
+    CHECK_LOOP(err);
+
     if (len >= sizeof(id) && id == WitnessLayoutOtxStart) {
       // step 4
+      // TODO
       CHECK2(!*has_otx, ERROR_OTX_START_DUP);
       *has_otx = true;
       *i = index;
@@ -478,6 +476,7 @@ static int hash_cell(blake2b_state *ctx, size_t index, size_t source,
   // CellOutput
   uint64_t cell_len = 0;
   err = ckb_load_cell(0, &cell_len, 0, index, source);
+  CHECK(err);
   mol2_cursor_t cell_cursor = {0};
   ckb_new_cursor(&cell_cursor, cell_len, read_from_cell, data_source,
                  MAX_CACHE_SIZE, index, source);
@@ -511,6 +510,8 @@ static int hash_cell_deps(blake2b_state *ctx, size_t *count, size_t start,
 
   uint64_t tx_len = 0;
   err = ckb_load_transaction(0, &tx_len, 0);
+  CHECK(err);
+  
   mol2_cursor_t cur = {0};
   ckb_new_cursor(&cur, tx_len, read_from_tx, data_source, MAX_CACHE_SIZE, 0, 0);
   TransactionType tx = make_Transaction(&cur);
@@ -560,21 +561,14 @@ int ckb_generate_smh(bool has_message, mol2_cursor_t message_cursor,
   size_t index = 0;
   for (;; index++) {
     err = hash_cell(&ctx, index, CKB_SOURCE_INPUT, &count);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      break;
-    }
-    CHECK(err);
+    CHECK_LOOP(err);
   }
   size_t input_len = index;
   // hash remaining witnesses
   for (size_t index = input_len;; index++) {
     uint64_t witness_len = 0;
     err = ckb_load_witness(0, &witness_len, 0, index, CKB_SOURCE_INPUT);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      err = 0;
-      break;
-    }
-    CHECK(err);
+    CHECK_LOOP(err);
     mol2_cursor_t witness_cursor;
     ckb_new_cursor(&witness_cursor, witness_len, read_from_witness, data_source,
                    MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
@@ -657,6 +651,7 @@ static int check_type_script_existing(mol2_cursor_t message) {
     CHECK2(len == BLAKE2B_BLOCK_SIZE, ERROR_MESSAGE);
     void *found = bsearch(hash_buff, type_script_hash, type_script_hash_count,
                           BLAKE2B_BLOCK_SIZE, hash_cmp);
+    // TODO
     CHECK2(found != NULL, ERROR_TYPESCRIPT_MISSING);
   }
 
@@ -789,7 +784,8 @@ int ckb_generate_otx_smh(mol2_cursor_t message_cursor, uint8_t *smh,
   // hash cell deps
   BLAKE2B_UPDATE(&ctx, &size->cell_deps, 4);
   count += 4;
-  hash_cell_deps(&ctx, &count, start->start_cell_deps, size->cell_deps);
+  err = hash_cell_deps(&ctx, &count, start->start_cell_deps, size->cell_deps);
+  CHECK(err);
 
   // hash header deps
   BLAKE2B_UPDATE(&ctx, &size->header_deps, 4);
@@ -841,6 +837,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     WitnessLayoutId id;
     err = get_witness_layout(index, &id);
     if (err == CKB_INDEX_OUT_OF_BOUND) {
+      err = 0;
       break;
     }
     if (err == 0) {
@@ -849,7 +846,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     }
   }
   if (!*cobuild_enabled) {
-    return 0;
+    goto exit;
   }
 
   uint8_t current_script_hash[BLAKE2B_BLOCK_SIZE] = {0};
@@ -888,15 +885,13 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     mol2_cursor_t cursor;
     err = ckb_new_witness_cursor(&cursor, g_cobuild_seal_data_source,
                                  MAX_CACHE_SIZE, index, CKB_SOURCE_INPUT);
-    if (err == CKB_INDEX_OUT_OF_BOUND) {
-      // step 6, not WitnessLayoutOtx
-      break;
-    }
-    CHECK(err);
+    // step 6, not WitnessLayoutOtx
+    CHECK_LOOP(err);
     uint32_t id = 0;
     err = try_union_unpack_id(&cursor, &id);
     if (err || id != WitnessLayoutOtx) {
       // step 6
+      // TODO
       break;
     }
     mol2_union_t uni = mol2_union_unpack(&cursor);
@@ -920,6 +915,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
       }
     }
     if (!found) {
+      // TODO
       continue;
     }
     // step 6.e
@@ -938,6 +934,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     // 6.b
     if (size.input_cells == 0 && size.output_cells == 0 &&
         size.cell_deps == 0 && size.header_deps == 0) {
+      // TODO
       CHECK2(false, ERROR_WRONG_OTX);
     }
     err = ckb_generate_otx_smh(message.cur, smh, &start, &size);
@@ -964,6 +961,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
         break;
       }
     }
+    // TODO
     CHECK2(seal_found, ERROR_SEAL);
     // support more message calculation flows base on the first byte of seal
     uint8_t message_calculation_flow = 0;
@@ -978,6 +976,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
         ckb_exit(err);
       }
     } else {
+      // TODO
       CHECK2(false, ERROR_FLOW);
     }
     // step 6.h
@@ -996,9 +995,11 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
       WitnessLayoutId id;
       int err = get_witness_layout(index, &id);
       if (err == CKB_INDEX_OUT_OF_BOUND) {
+        err = 0;
         break;
       }
       if (err == 0) {
+        // TODO
         CHECK2(id != WitnessLayoutOtx, ERROR_WRONG_OTX);
       }
     }
@@ -1014,11 +1015,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
       uint64_t len = BLAKE2B_BLOCK_SIZE;
       err = ckb_load_cell_by_field(hash, &len, 0, j, CKB_SOURCE_INPUT,
                                    CKB_CELL_FIELD_LOCK_HASH);
-      if (err == CKB_INDEX_OUT_OF_BOUND) {
-        err = CKB_SUCCESS;
-        break;
-      }
-      CHECK(err);
+      CHECK_LOOP(err);
       if (memcmp(hash, current_script_hash, sizeof(hash)) == 0) {
         printf(
             "Same lock script found beyond otx, at index %d. "
@@ -1030,6 +1027,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     }
   }
   if (found) {
+    // TODO
     printf("extra callback is invoked");
     execution_count++;
     err = ckb_cobuild_normal_entry(callback);
