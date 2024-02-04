@@ -1,6 +1,6 @@
-CC := clang-16
-LD := ld.lld-16
-OBJCOPY := llvm-objcopy-16
+CC := clang
+LD := ld.lld
+OBJCOPY := llvm-objcopy
 CFLAGS := \
 	--target=riscv64 -march=rv64imc_zba_zbb_zbc_zbs \
 	-fPIC -O3 -fno-builtin-printf -fno-builtin-memcmp -nostdinc -nostdlib -fvisibility=hidden -fdata-sections -ffunction-sections \
@@ -109,6 +109,11 @@ install-tools:
 			|| [ "$$(${MOLC} --version | awk '{ print $$2 }' | tr -d ' ')" != "${MOLC_VERSION}" ]; then \
 		cargo install --force --version "${MOLC_VERSION}" "${MOLC}"; \
 	fi
+
+install-clang-16-for-ubuntu:
+	wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+	tar -xvf clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+	mv clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04 llvm-16
 
 dist: clean all
 
