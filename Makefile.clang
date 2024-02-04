@@ -5,7 +5,7 @@ CFLAGS := \
 	--target=riscv64 -march=rv64imc_zba_zbb_zbc_zbs \
 	-fPIC -O3 -fno-builtin-printf -fno-builtin-memcmp -nostdinc -nostdlib -fvisibility=hidden -fdata-sections -ffunction-sections \
 	-I deps/secp256k1/src -I deps/secp256k1 -I deps/ckb-c-std-lib -I deps/ckb-c-std-lib/libc -I deps/ckb-c-std-lib/molecule -I c -I build \
-	-Wall -Wno-nonnull -Wno-unused-function -g
+	-Wall -Wno-nonnull -Wno-unused-function -g -Wl,--gc-sections
 LDFLAGS := -nostdlib -static --gc-sections
 SECP256K1_SRC_20210801 := deps/secp256k1-20210801/src/ecmult_static_pre_context.h
 
@@ -28,7 +28,7 @@ CLANG_FORMAT_DOCKER := kason223/clang-format@sha256:3cce35b0400a7d420ec8504558a0
 all: build/omni_lock build/always_success
 
 build/always_success: c/always_success.c
-	$(CC) $(OMNI_LOCK_CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(OMNI_LOCK_CFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
