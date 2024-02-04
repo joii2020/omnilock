@@ -1,7 +1,3 @@
-/**
-This is an implementation in C of cobuild. See reference implementation in Rust:
-https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transaction-cobuild/src/lib.rs
-*/
 // abbrev.
 // * smh: signing message hash
 
@@ -11,14 +7,16 @@ https://github.com/cryptape/ckb-transaction-cobuild-poc/blob/main/ckb-transactio
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
+#ifndef MOL2_EXIT
+#define MOL2_EXIT ckb_exit
+#endif
+int ckb_exit(signed char);
 #define MOLECULEC_C2_DECLARATION_ONLY
-#define MOLECULEC2_VERSION 7002
-#include "cobuild.h"
+
 #include "molecule2_reader.h"
-#undef MOLECULEC2_VERSION
 #include "blockchain-api2.h"
 #include "cobuild_basic_mol2.h"
+#include "cobuild.h"
 
 #include "blake2b_decl_only.h"
 #include "ckb_consts.h"
@@ -431,8 +429,7 @@ int ckb_fetch_seal(mol2_cursor_t *seal_cursor) {
     printf("error in fetch_seal, id = %u", id);
     CHECK2(false, ERROR_SIGHASHALL_NOSEAL);
   }
-  mol2_add_offset(seal_cursor, MOL2_NUM_T_SIZE);
-  mol2_sub_size(seal_cursor, MOL2_NUM_T_SIZE);
+  *seal_cursor = convert_to_rawbytes(seal_cursor);
 exit:
   return err;
 }

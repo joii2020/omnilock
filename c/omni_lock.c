@@ -1,15 +1,15 @@
+// in secp256k1_ctz64_var: we don't have __builtin_ctzl in gcc for RISC-V
+#define __builtin_ctzl secp256k1_ctz64_var_debruijn
+// clang-format off
+#include <stdio.h>
 // it's used by blockchain-api2.h, the behavior when panic
 #ifndef MOL2_EXIT
 #define MOL2_EXIT ckb_exit
 #endif
 int ckb_exit(signed char);
-// in secp256k1_ctz64_var: we don't have __builtin_ctzl in gcc for RISC-V
-#define __builtin_ctzl secp256k1_ctz64_var_debruijn
-
-// clang-format off
-#include <stdio.h>
-#include "blockchain-api2.h"
 #define MOLECULEC_VERSION 7000
+
+#include "blockchain-api2.h"
 #include "blockchain.h"
 #include "ckb_consts.h"
 
