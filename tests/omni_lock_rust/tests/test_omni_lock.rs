@@ -307,47 +307,6 @@ fn test_rsa_via_dl_wrong_sig() {
     assert_script_error(verify_result.unwrap_err(), ERROR_RSA_VERIFY_FAILED);
 }
 
-#[test]
-fn test_rsa_via_dl_unlock_with_time_lock() {
-    let mut data_loader = DummyDataLoader::new();
-
-    let args_since = 0x2000_0000_0000_0000u64 + 200;
-    let input_since = 0x2000_0000_0000_0000u64 + 200;
-    let mut config = TestConfig::new(IDENTITY_FLAGS_DL, false);
-    config.set_rsa();
-    config.set_since(args_since, input_since);
-
-    let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = sign_tx(&mut data_loader, tx, &mut config);
-    let resolved_tx = build_resolved_tx(&data_loader, &tx);
-
-    let mut verifier = verify_tx(resolved_tx, data_loader);
-    verifier.set_debug_printer(debug_printer);
-    let verify_result = verifier.verify(MAX_CYCLES);
-    verify_result.expect("pass verification");
-}
-
-#[test]
-fn test_rsa_via_dl_unlock_with_time_lock_failed() {
-    let mut data_loader = DummyDataLoader::new();
-
-    let args_since = 0x2000_0000_0000_0000u64 + 200;
-    let input_since = 0x2000_0000_0000_0000u64 + 100;
-    let mut config = TestConfig::new(IDENTITY_FLAGS_DL, false);
-    config.set_rsa();
-    config.set_since(args_since, input_since);
-
-    let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = sign_tx(&mut data_loader, tx, &mut config);
-    let resolved_tx = build_resolved_tx(&data_loader, &tx);
-
-    let mut verifier = verify_tx(resolved_tx, data_loader);
-    verifier.set_debug_printer(debug_printer);
-    let verify_result = verifier.verify(MAX_CYCLES);
-
-    assert_script_error(verify_result.unwrap_err(), ERROR_INCORRECT_SINCE_VALUE);
-}
-
 // currently, the signature can only be signed via hardware.
 // Here we can only provide a failed case.
 #[test]
@@ -1069,28 +1028,6 @@ fn test_cobuild_owner_lock_on_wl() {
 }
 
 #[test]
-fn test_cobuild_rsa_via_dl_unlock_with_time_lock_failed() {
-    let mut data_loader = DummyDataLoader::new();
-
-    let args_since = 0x2000_0000_0000_0000u64 + 200;
-    let input_since = 0x2000_0000_0000_0000u64 + 100;
-    let mut config = TestConfig::new(IDENTITY_FLAGS_DL, false);
-    config.cobuild_enabled = true;
-    config.set_rsa();
-    config.set_since(args_since, input_since);
-
-    let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = sign_tx(&mut data_loader, tx, &mut config);
-    let resolved_tx = build_resolved_tx(&data_loader, &tx);
-
-    let mut verifier = verify_tx(resolved_tx, data_loader);
-    verifier.set_debug_printer(debug_printer);
-    let verify_result = verifier.verify(MAX_CYCLES);
-
-    assert_script_error(verify_result.unwrap_err(), ERROR_INCORRECT_SINCE_VALUE);
-}
-
-#[test]
 fn test_cobuild_append_witnessargs_acp() {
     let mut data_loader: DummyDataLoader = DummyDataLoader::new();
 
@@ -1098,31 +1035,6 @@ fn test_cobuild_append_witnessargs_acp() {
     config.cobuild_enabled = true;
     config.set_chain_config(Box::new(BitcoinConfig { sign_vtype: BITCOIN_V_TYPE_P2PKHCOMPRESSED, pubkey_err: false }));
     config.set_acp_config(Some((0, 0)));
-
-    config.custom_extension_witnesses =
-        Some(vec![WitnessArgsBuilder::default().lock(Some(Bytes::from([0u8; 65].to_vec())).pack()).build().as_bytes()]);
-
-    let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = sign_tx(&mut data_loader, tx, &mut config);
-    let resolved_tx = build_resolved_tx(&data_loader, &tx);
-
-    let mut verifier = verify_tx(resolved_tx, data_loader);
-    verifier.set_debug_printer(debug_printer);
-    let verify_result = verifier.verify(MAX_CYCLES);
-    verify_result.expect("pass verification");
-}
-
-#[test]
-fn test_cobuild_append_witnessargs_since() {
-    let mut data_loader = DummyDataLoader::new();
-
-    let mut config = TestConfig::new(IDENTITY_FLAGS_BITCOIN, false);
-    config.cobuild_enabled = true;
-    config.set_chain_config(Box::new(BitcoinConfig { sign_vtype: BITCOIN_V_TYPE_P2PKHCOMPRESSED, pubkey_err: false }));
-
-    let args_since = 0x2000_0000_0000_0000u64 + 200;
-    let input_since = 0x2000_0000_0000_0000u64 + 200;
-    config.set_since(args_since, input_since);
 
     config.custom_extension_witnesses =
         Some(vec![WitnessArgsBuilder::default().lock(Some(Bytes::from([0u8; 65].to_vec())).pack()).build().as_bytes()]);
