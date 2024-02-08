@@ -354,6 +354,22 @@ pub fn omnilock_create_witness_lock(sign: &[u8]) -> Vec<u8> {
         .to_vec()
 }
 
+const ERROR_TYPESCRIPT_MISSING: i8 = 116;
+const ERROR_SEAL: i8 = 117;
+const ERROR_FLOW: i8 = 118;
+const ERROR_OTX_START_DUP: i8 = 119;
+const ERROR_WRONG_OTX: i8 = 120;
+
+pub fn assert_script_error(err: ckb_error::Error, err_code: i8) {
+    let error_string = err.to_string();
+    assert!(
+        error_string.contains(format!("error code {}", err_code).as_str()),
+        "error_string: {}, expected_error_code: {}",
+        error_string,
+        err_code
+    );
+}
+
 #[test]
 fn test_cobuild_sighash_all_bitcoin_p2pkh_compressed() {
     let mut dl = Resource::default();
@@ -837,6 +853,213 @@ fn generate_otx_d0(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::Tra
     tx_builder.build()
 }
 
+// no seal
+fn generate_otx_e0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
+
+    // Create prior knowledge
+    let prikey = "0000000000000000000000000000000000000000000000000000000000000001";
+    let prikey = ckb_crypto::secp::Privkey::from_str(prikey).unwrap();
+    let pubkey = prikey.pubkey().unwrap();
+    let pubkey_hash = hash_ripemd160_sha256(&pubkey.serialize());
+    let args = [vec![IDENTITY_FLAGS_BITCOIN], pubkey_hash.to_vec(), vec![0x00]].concat();
+
+    // Create cell meta
+    let cell_meta_always_success = px.insert_cell_data(dl, BINARY_ALWAYS_SUCCESS);
+    let cell_meta_secp256k1_data = px.insert_cell_data(dl, BINARY_SECP256K1_DATA);
+    let cell_meta_omni_lock = px.insert_cell_data(dl, BINARY_OMNI_LOCK);
+    let cell_meta_i = px.insert_cell_fund(dl, px.create_script(&cell_meta_omni_lock, &args), None, &[]);
+
+    // Create cell dep
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_always_success));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_secp256k1_data));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_omni_lock));
+
+    // Create input
+    let tx_builder = tx_builder.input(px.create_cell_input(&cell_meta_i));
+
+    // Create output
+    let tx_builder = tx_builder.output(px.create_cell_output(
+        px.create_script(&cell_meta_always_success, &[]),
+        Some(px.create_script(&cell_meta_always_success, &[])),
+    ));
+
+    // Create output data
+    let tx_builder = tx_builder.output_data(Vec::new().pack());
+
+    // Create witness
+    let msgs = {
+        let action = schemas::basic::Action::new_builder()
+            .script_info_hash(ckb_types::packed::Byte32::from_slice(&[0x00; 32]).unwrap())
+            .script_hash(px.create_script(&cell_meta_always_success, &[]).calc_script_hash())
+            .data(ckb_types::bytes::Bytes::from(vec![0x42; 128]).pack())
+            .build();
+        let action_vec = schemas::basic::ActionVec::new_builder().push(action).build();
+        let msgs = schemas::basic::Message::new_builder().actions(action_vec).build();
+        msgs
+    };
+    let sign = cobuild_create_signing_message_hash_otx(tx_builder.clone().build(), &dl, &msgs);
+    println_hex("smh", &sign);
+    // let sign = sign_bitcoin_p2pkh_compressed(prikey, &sign);
+    // let sign = omnilock_create_witness_lock(&sign);
+
+    let ox = schemas::basic::Otx::new_builder()
+        // .seals(seal)
+        .message(msgs)
+        .input_cells(1u32.pack())
+        .output_cells(1u32.pack())
+        .cell_deps(3u32.pack())
+        .header_deps(0u32.pack())
+        .build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(ox).build();
+    let tx_builder = tx_builder.witness(wl.as_bytes().pack());
+
+    tx_builder.build()
+}
+
+fn generate_otx_f0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
+
+    // Create prior knowledge
+    let prikey = "0000000000000000000000000000000000000000000000000000000000000001";
+    let prikey = ckb_crypto::secp::Privkey::from_str(prikey).unwrap();
+    let pubkey = prikey.pubkey().unwrap();
+    let pubkey_hash = hash_ripemd160_sha256(&pubkey.serialize());
+    let args = [vec![IDENTITY_FLAGS_BITCOIN], pubkey_hash.to_vec(), vec![0x00]].concat();
+
+    // Create cell meta
+    let cell_meta_always_success = px.insert_cell_data(dl, BINARY_ALWAYS_SUCCESS);
+    let cell_meta_secp256k1_data = px.insert_cell_data(dl, BINARY_SECP256K1_DATA);
+    let cell_meta_omni_lock = px.insert_cell_data(dl, BINARY_OMNI_LOCK);
+    let cell_meta_i = px.insert_cell_fund(dl, px.create_script(&cell_meta_omni_lock, &args), None, &[]);
+
+    // Create cell dep
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_always_success));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_secp256k1_data));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_omni_lock));
+
+    // Create input
+    let tx_builder = tx_builder.input(px.create_cell_input(&cell_meta_i));
+
+    // Create output
+    let tx_builder = tx_builder.output(px.create_cell_output(
+        px.create_script(&cell_meta_always_success, &[]),
+        Some(px.create_script(&cell_meta_always_success, &[])),
+    ));
+
+    // Create output data
+    let tx_builder = tx_builder.output_data(Vec::new().pack());
+
+    // Create witness
+    let msgs = {
+        let action = schemas::basic::Action::new_builder()
+            .script_info_hash(ckb_types::packed::Byte32::from_slice(&[0x00; 32]).unwrap())
+            .script_hash(px.create_script(&cell_meta_always_success, &[]).calc_script_hash())
+            .data(ckb_types::bytes::Bytes::from(vec![0x42; 128]).pack())
+            .build();
+        let action_vec = schemas::basic::ActionVec::new_builder().push(action).build();
+        let msgs = schemas::basic::Message::new_builder().actions(action_vec).build();
+        msgs
+    };
+    let sign = cobuild_create_signing_message_hash_otx(tx_builder.clone().build(), &dl, &msgs);
+    println_hex("smh", &sign);
+    let sign = sign_bitcoin_p2pkh_compressed(prikey, &sign);
+    let sign = omnilock_create_witness_lock(&sign);
+    let seal = [vec![0x22], sign].concat();
+    println_hex("seal", seal.as_slice());
+    let seal = schemas::basic::SealPair::new_builder()
+        .script_hash(px.create_script(&cell_meta_omni_lock, &args).calc_script_hash())
+        .seal(seal.pack())
+        .build();
+    let seal = schemas::basic::SealPairVec::new_builder().push(seal).build();
+    let ox = schemas::basic::Otx::new_builder()
+        .seals(seal)
+        .message(msgs)
+        .input_cells(1u32.pack())
+        .output_cells(1u32.pack())
+        .cell_deps(3u32.pack())
+        .header_deps(0u32.pack())
+        .build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(ox).build();
+    let tx_builder = tx_builder.witness(wl.as_bytes().pack());
+
+    tx_builder.build()
+}
+
+// failed Message Action ScriptHash
+fn generate_otx_g0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
+
+    // Create prior knowledge
+    let prikey = "0000000000000000000000000000000000000000000000000000000000000001";
+    let prikey = ckb_crypto::secp::Privkey::from_str(prikey).unwrap();
+    let pubkey = prikey.pubkey().unwrap();
+    let pubkey_hash = hash_ripemd160_sha256(&pubkey.serialize());
+    let args = [vec![IDENTITY_FLAGS_BITCOIN], pubkey_hash.to_vec(), vec![0x00]].concat();
+
+    // Create cell meta
+    let cell_meta_always_success = px.insert_cell_data(dl, BINARY_ALWAYS_SUCCESS);
+    let cell_meta_secp256k1_data = px.insert_cell_data(dl, BINARY_SECP256K1_DATA);
+    let cell_meta_omni_lock = px.insert_cell_data(dl, BINARY_OMNI_LOCK);
+    let cell_meta_i = px.insert_cell_fund(dl, px.create_script(&cell_meta_omni_lock, &args), None, &[]);
+
+    // Create cell dep
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_always_success));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_secp256k1_data));
+    let tx_builder = tx_builder.cell_dep(px.create_cell_dep(&cell_meta_omni_lock));
+
+    // Create input
+    let tx_builder = tx_builder.input(px.create_cell_input(&cell_meta_i));
+
+    // Create output
+    let tx_builder = tx_builder.output(px.create_cell_output(
+        px.create_script(&cell_meta_always_success, &[]),
+        Some(px.create_script(&cell_meta_always_success, &[])),
+    ));
+
+    // Create output data
+    let tx_builder = tx_builder.output_data(Vec::new().pack());
+
+    // Create witness
+    let msgs = {
+        let hash = px.create_script(&cell_meta_always_success, &[]).calc_script_hash();
+        let hash = hash.as_builder().nth0(0.into()).nth1(0.into()).nth2(0.into()).build();
+
+        let action = schemas::basic::Action::new_builder()
+            .script_info_hash(ckb_types::packed::Byte32::from_slice(&[0x00; 32]).unwrap())
+            // .script_hash(px.create_script(&cell_meta_always_success, &[]).calc_script_hash())
+            .script_hash(hash)
+            .data(ckb_types::bytes::Bytes::from(vec![0x42; 128]).pack())
+            .build();
+        let action_vec = schemas::basic::ActionVec::new_builder().push(action).build();
+        let msgs = schemas::basic::Message::new_builder().actions(action_vec).build();
+        msgs
+    };
+    let sign = cobuild_create_signing_message_hash_otx(tx_builder.clone().build(), &dl, &msgs);
+    println_hex("smh", &sign);
+    let sign = sign_bitcoin_p2pkh_compressed(prikey, &sign);
+    let sign = omnilock_create_witness_lock(&sign);
+    let seal = [vec![0x00], sign].concat();
+    println_hex("seal", seal.as_slice());
+    let seal = schemas::basic::SealPair::new_builder()
+        .script_hash(px.create_script(&cell_meta_omni_lock, &args).calc_script_hash())
+        .seal(seal.pack())
+        .build();
+    let seal = schemas::basic::SealPairVec::new_builder().push(seal).build();
+    let ox = schemas::basic::Otx::new_builder()
+        .seals(seal)
+        .message(msgs)
+        .input_cells(1u32.pack())
+        .output_cells(1u32.pack())
+        .cell_deps(3u32.pack())
+        .header_deps(0u32.pack())
+        .build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(ox).build();
+    let tx_builder = tx_builder.witness(wl.as_bytes().pack());
+
+    tx_builder.build()
+}
+
 fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core::TransactionView {
     let mut tx_builder = ckb_types::core::TransactionBuilder::default();
     let os = schemas::basic::OtxStart::new_builder().build();
@@ -1054,4 +1277,203 @@ fn test_cobuild_otx_random() {
         let verifier = Verifier::default();
         verifier.verify(&tx, &dl).unwrap();
     }
+}
+
+#[test]
+fn test_cobuild_otx_double_otx_start() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+
+    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    for otx in [generate_otx_a0(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_OTX_START_DUP);
+}
+
+#[test]
+fn test_cobuild_otx_noexistent_otx_id() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+
+    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let mut wl = schemas::top_level::WitnessLayout::new_builder().set(os).build().as_bytes().to_vec();
+    wl[0..4].copy_from_slice(&(4278190084u32 + 2).to_le_bytes()); // WitnessLayoutOtxStart + 1
+
+    tx_builder = tx_builder.witness(wl.pack());
+    for otx in [generate_otx_a0(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    let result_verifier = verifier.verify(&tx, &dl);
+    assert_script_error(result_verifier.unwrap_err(), ERROR_WRONG_OTX);
+}
+
+#[test]
+fn test_cobuild_otx_no_seal() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+
+    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    for otx in [generate_otx_e0_fail(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_SEAL);
+}
+
+#[test]
+fn test_cobuild_otx_msg_flow() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+
+    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    for otx in [generate_otx_f0_fail(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_FLOW);
+}
+
+#[test]
+fn test_cobuild_otx_double_input() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+
+    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    for otx in [generate_otx_a0(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+    let os = schemas::basic::OtxStart::new_builder().build();
+    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    for otx in [generate_otx_a0(&mut dl, &mut px)] {
+        for e in otx.cell_deps_iter() {
+            tx_builder = tx_builder.cell_dep(e);
+        }
+        for e in otx.inputs().into_iter() {
+            tx_builder = tx_builder.input(e);
+        }
+        for e in otx.outputs().into_iter() {
+            tx_builder = tx_builder.output(e);
+        }
+        for e in otx.outputs_data().into_iter() {
+            tx_builder = tx_builder.output_data(e);
+        }
+        for e in otx.witnesses().into_iter() {
+            tx_builder = tx_builder.witness(e);
+        }
+    }
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_OTX_START_DUP);
+}
+
+#[test]
+fn test_cobuild_otx_noexistent_type_script_hash() {
+    let mut dl = Resource::default();
+    let mut px = Pickaxer::default();
+    let tx = assemble_otx(vec![generate_otx_g0_fail(&mut dl, &mut px)]);
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
+    let verifier = Verifier::default();
+    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_TYPESCRIPT_MISSING);
 }
