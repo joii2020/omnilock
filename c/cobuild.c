@@ -906,7 +906,7 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     // 6.b
     if (size.input_cells == 0 && size.output_cells == 0 &&
         size.cell_deps == 0 && size.header_deps == 0) {
-      // TODO
+      // test_cobuild_otx_msg_size_all_0
       CHECK2(false, ERROR_WRONG_OTX);
     }
     // step 6.c
