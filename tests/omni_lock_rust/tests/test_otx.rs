@@ -854,7 +854,7 @@ fn generate_otx_d0(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::Tra
 }
 
 // no seal
-fn generate_otx_e0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+fn generate_otx_a1_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx_builder = ckb_types::core::TransactionBuilder::default();
 
     // Create prior knowledge
@@ -917,7 +917,7 @@ fn generate_otx_e0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx_builder.build()
 }
 
-fn generate_otx_f0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+fn generate_otx_a2_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx_builder = ckb_types::core::TransactionBuilder::default();
 
     // Create prior knowledge
@@ -987,7 +987,7 @@ fn generate_otx_f0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
 }
 
 // failed Message Action ScriptHash
-fn generate_otx_g0_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
+fn generate_otx_a3_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx_builder = ckb_types::core::TransactionBuilder::default();
 
     // Create prior knowledge
@@ -1361,7 +1361,7 @@ fn test_cobuild_otx_no_seal() {
     let os = schemas::basic::OtxStart::new_builder().build();
     let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
     tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_e0_fail(&mut dl, &mut px)] {
+    for otx in [generate_otx_a1_fail(&mut dl, &mut px)] {
         for e in otx.cell_deps_iter() {
             tx_builder = tx_builder.cell_dep(e);
         }
@@ -1393,7 +1393,7 @@ fn test_cobuild_otx_msg_flow() {
     let os = schemas::basic::OtxStart::new_builder().build();
     let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
     tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_f0_fail(&mut dl, &mut px)] {
+    for otx in [generate_otx_a2_fail(&mut dl, &mut px)] {
         for e in otx.cell_deps_iter() {
             tx_builder = tx_builder.cell_dep(e);
         }
@@ -1472,7 +1472,7 @@ fn test_cobuild_otx_double_input() {
 fn test_cobuild_otx_noexistent_type_script_hash() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
-    let tx = assemble_otx(vec![generate_otx_g0_fail(&mut dl, &mut px)]);
+    let tx = assemble_otx(vec![generate_otx_a3_fail(&mut dl, &mut px)]);
     let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_TYPESCRIPT_MISSING);
