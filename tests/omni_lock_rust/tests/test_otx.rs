@@ -1060,7 +1060,6 @@ fn generate_otx_a3_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx_builder.build()
 }
 
-
 fn generate_otx_a4_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx_builder = ckb_types::core::TransactionBuilder::default();
 
@@ -1130,11 +1129,13 @@ fn generate_otx_a4_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx_builder.build()
 }
 
-fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core::TransactionView {
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+fn assemble_otx_to_tx(
+    tx_builder: ckb_types::core::TransactionBuilder,
+    otxs: Vec<ckb_types::core::TransactionView>,
+) -> ckb_types::core::TransactionBuilder {
     let os = schemas::basic::OtxStart::new_builder().build();
     let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    let mut tx_builder = tx_builder.witness(wl.as_bytes().pack());
     for otx in otxs {
         for e in otx.cell_deps_iter() {
             tx_builder = tx_builder.cell_dep(e);
@@ -1152,7 +1153,13 @@ fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core:
             tx_builder = tx_builder.witness(e);
         }
     }
-    tx_builder.build()
+
+    tx_builder
+}
+
+fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core::TransactionView {
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
+    assemble_otx_to_tx(tx_builder, otxs).build()
 }
 
 #[test]
@@ -1358,26 +1365,8 @@ fn test_cobuild_otx_double_otx_start() {
     let os = schemas::basic::OtxStart::new_builder().build();
     let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
     tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a0(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
+
+    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
 
     let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
@@ -1427,29 +1416,8 @@ fn test_cobuild_otx_no_seal() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a1_fail(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
-
-    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let tx = assemble_otx(vec![generate_otx_a1_fail(&mut dl, &mut px)]);
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_SEAL);
 }
@@ -1459,29 +1427,8 @@ fn test_cobuild_otx_msg_flow() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a2_fail(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
-
-    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let tx = assemble_otx(vec![generate_otx_a2_fail(&mut dl, &mut px)]);
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_FLOW);
 }
@@ -1491,47 +1438,10 @@ fn test_cobuild_otx_double_input() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a0(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a0(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
+
+    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
+    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
 
     let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
@@ -1553,29 +1463,9 @@ fn test_cobuild_otx_msg_size_all_0() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
-    for otx in [generate_otx_a4_fail(&mut dl, &mut px)] {
-        for e in otx.cell_deps_iter() {
-            tx_builder = tx_builder.cell_dep(e);
-        }
-        for e in otx.inputs().into_iter() {
-            tx_builder = tx_builder.input(e);
-        }
-        for e in otx.outputs().into_iter() {
-            tx_builder = tx_builder.output(e);
-        }
-        for e in otx.outputs_data().into_iter() {
-            tx_builder = tx_builder.output_data(e);
-        }
-        for e in otx.witnesses().into_iter() {
-            tx_builder = tx_builder.witness(e);
-        }
-    }
+    let tx = assemble_otx(vec![generate_otx_a4_fail(&mut dl, &mut px)]);
 
-    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_WRONG_OTX);
 }
