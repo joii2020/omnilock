@@ -854,7 +854,7 @@ fn generate_otx_d0(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::Tra
     tx_builder.build()
 }
 
-// no seal
+// Failed: No seal
 fn generate_otx_a1_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx = generate_otx_a0(dl, px);
     let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
@@ -880,7 +880,7 @@ fn generate_otx_a1_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx.as_advanced_builder().set_witnesses(witnesses).build()
 }
 
-//
+// Failed: The test_cobuild_otx_msg_flow is not 0
 fn generate_otx_a2_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx = generate_otx_a0(dl, px);
     let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
@@ -914,11 +914,9 @@ fn generate_otx_a2_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     witnesses[0] = schemas::top_level::WitnessLayout::new_builder().set(otx.unwrap()).build().as_bytes().pack();
 
     tx.as_advanced_builder().set_witnesses(witnesses).build()
-
-    // let seal = [vec![0x22], sign].concat();
 }
 
-// failed Message Action ScriptHash
+// Failed: Message Action ScriptHash
 fn generate_otx_a3_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx = generate_otx_a0(dl, px);
     let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
@@ -964,6 +962,7 @@ fn generate_otx_a3_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx.as_advanced_builder().set_witnesses(witnesses).build()
 }
 
+// Failed: The intput cells/output cells/cell deps/header deps is 0
 fn generate_otx_a4_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx = generate_otx_a0(dl, px);
     let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
