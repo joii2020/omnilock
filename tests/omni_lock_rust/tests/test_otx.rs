@@ -991,10 +991,8 @@ fn generate_otx_a4_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx.as_advanced_builder().set_witnesses(witnesses).build()
 }
 
-fn assemble_otx_to_tx(
-    tx_builder: ckb_types::core::TransactionBuilder,
-    otxs: Vec<ckb_types::core::TransactionView>,
-) -> ckb_types::core::TransactionBuilder {
+fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core::TransactionView {
+    let tx_builder = ckb_types::core::TransactionBuilder::default();
     let os = schemas::basic::OtxStart::new_builder().build();
     let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
     let mut tx_builder = tx_builder.witness(wl.as_bytes().pack());
@@ -1016,12 +1014,27 @@ fn assemble_otx_to_tx(
         }
     }
 
-    tx_builder
+    tx_builder.build()
 }
 
-fn assemble_otx(otxs: Vec<ckb_types::core::TransactionView>) -> ckb_types::core::TransactionView {
-    let tx_builder = ckb_types::core::TransactionBuilder::default();
-    assemble_otx_to_tx(tx_builder, otxs).build()
+fn merge_bytesvec<T1: IntoIterator, T2: Clone + From<<T1 as IntoIterator>::Item>>(v1: T1, v2: T1) -> Vec<T2> {
+    let v1: Vec<T2> = v1.into_iter().map(|f| f.into()).collect();
+    let v2: Vec<T2> = v2.into_iter().map(|f| f.into()).collect();
+    [v1, v2].concat()
+}
+
+fn merge_tx(
+    tx1: ckb_types::core::TransactionView,
+    tx2: ckb_types::core::TransactionView,
+) -> ckb_types::core::TransactionView {
+    let tx_builder = tx1.as_advanced_builder();
+    tx_builder
+        .set_cell_deps(merge_bytesvec(tx1.cell_deps(), tx2.cell_deps()))
+        .set_inputs(merge_bytesvec(tx1.inputs(), tx2.inputs()))
+        .set_outputs(merge_bytesvec(tx1.outputs(), tx2.outputs()))
+        .set_witnesses(merge_bytesvec(tx1.witnesses(), tx2.witnesses()))
+        .set_outputs_data(merge_bytesvec(tx1.outputs_data(), tx2.outputs_data()))
+        .build()
 }
 
 #[test]
@@ -1223,16 +1236,19 @@ fn test_cobuild_otx_double_otx_start() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let tx = assemble_otx(vec![generate_otx_a0(&mut dl, &mut px)]);
 
-    // Insert an additional OtxStart
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+    let tx = {
+        let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
 
-    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
+        let os = schemas::basic::OtxStart::new_builder().build();
+        let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+        witnesses.insert(0, wl.as_bytes().pack());
 
-    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+        tx.as_advanced_builder().set_witnesses(witnesses).build()
+    };
+
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_OTX_START_DUP);
 }
@@ -1242,13 +1258,16 @@ fn test_cobuild_otx_noexistent_otx_id() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let mut tx_builder = ckb_types::core::TransactionBuilder::default();
+    let tx = assemble_otx(vec![generate_otx_a0(&mut dl, &mut px)]);
+    let tx = {
+        let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
 
-    let os = schemas::basic::OtxStart::new_builder().build();
-    let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
-    tx_builder = tx_builder.witness(wl.as_bytes().pack());
+        let os = schemas::basic::OtxStart::new_builder().build();
+        let wl = schemas::top_level::WitnessLayout::new_builder().set(os).build();
+        witnesses.insert(0, wl.as_bytes().pack());
 
-    let tx = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]).build();
+        tx.as_advanced_builder().set_witnesses(witnesses).build()
+    };
 
     let mut witnesses: Vec<ckb_types::packed::Bytes> = tx.witnesses().into_iter().map(|f| f).collect();
     let mut witness = witnesses.get(1).unwrap().as_slice().to_vec();
@@ -1290,12 +1309,12 @@ fn test_cobuild_otx_double_input() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
 
-    let tx_builder = ckb_types::core::TransactionBuilder::default();
+    let tx = merge_tx(
+        assemble_otx(vec![generate_otx_a0(&mut dl, &mut px)]),
+        assemble_otx(vec![generate_otx_a0(&mut dl, &mut px)]),
+    );
 
-    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
-    let tx_builder = assemble_otx_to_tx(tx_builder, vec![generate_otx_a0(&mut dl, &mut px)]);
-
-    let tx = ckb_types::core::cell::resolve_transaction(tx_builder.build(), &mut HashSet::new(), &dl, &dl).unwrap();
+    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_OTX_START_DUP);
 }
