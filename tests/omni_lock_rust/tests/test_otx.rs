@@ -1229,6 +1229,74 @@ fn test_cobuild_otx_random() {
         let verifier = Verifier::default();
         verifier.verify(&tx, &dl).unwrap();
     }
+
+    // Failed
+    // Compared with success_set, Error code is added
+    let mut failed_set = Vec::<(&str, Box<Fntype>, i8)>::new();
+    failed_set.push(("a1", Box::new(generate_otx_a1_fail), ERROR_SEAL));
+    failed_set.push(("a2", Box::new(generate_otx_a2_fail), ERROR_FLOW));
+    failed_set.push(("a3", Box::new(generate_otx_a3_fail), ERROR_TYPESCRIPT_MISSING));
+    failed_set.push(("a3", Box::new(generate_otx_a4_fail), ERROR_WRONG_OTX));
+
+    for i in 0..failed_set.len() {
+        let mut dl = Resource::default();
+        let mut px = Pickaxer::default();
+        println_log(format!("case: {}", failed_set[i].0).as_str());
+        let tx = assemble_otx(vec![failed_set[i].1(&mut dl, &mut px)]);
+        let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
+        let verifier = Verifier::default();
+        assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), failed_set[i].2);
+    }
+
+    // n success + 1 failed
+    for _ in 0..32 {
+        let mut dl = Resource::default();
+        let mut px = Pickaxer::default();
+        let mut hint = vec![];
+        let mut data = vec![];
+        for _ in 0..2 + (rgen.next_u32() as usize % 3) {
+            let nf = success_set.choose(&mut rgen).unwrap();
+            hint.push(nf.0);
+            data.push(nf.1(&mut dl, &mut px));
+        }
+
+        let nf = failed_set.choose(&mut rgen).unwrap();
+        hint.push(nf.0);
+        data.push(nf.1(&mut dl, &mut px));
+
+        // println_log(format!("case: {}", hint.join(" + ")).as_str());
+        let tx = assemble_otx(data);
+        let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
+        let verifier = Verifier::default();
+        assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), nf.2);
+    }
+
+    // n success + n failed.
+    //  unknow error code
+    for _ in 0..32 {
+        let mut dl = Resource::default();
+        let mut px = Pickaxer::default();
+        let mut hint = vec![];
+        let mut data = vec![];
+        for _ in 0..2 + (rgen.next_u32() as usize % 3) {
+            let nf = success_set.choose(&mut rgen).unwrap();
+            hint.push(nf.0);
+            data.push(nf.1(&mut dl, &mut px));
+        }
+
+        for _ in 0..2 + (rgen.next_u32() as usize % 3) {
+            let nf = failed_set.choose(&mut rgen).unwrap();
+            hint.push(nf.0);
+            data.push(nf.1(&mut dl, &mut px));
+        }
+
+        // println_log(format!("case: {}", hint.join(" + ")).as_str());
+        let tx = assemble_otx(data);
+        let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
+        let verifier = Verifier::default();
+        let error_code = verifier.verify(&tx, &dl).unwrap_err();
+        println!("random multi failed, error code: {}", error_code);
+    }
 }
 
 #[test]
@@ -1283,28 +1351,6 @@ fn test_cobuild_otx_noexistent_otx_id() {
 }
 
 #[test]
-fn test_cobuild_otx_no_seal() {
-    let mut dl = Resource::default();
-    let mut px = Pickaxer::default();
-
-    let tx = assemble_otx(vec![generate_otx_a1_fail(&mut dl, &mut px)]);
-    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
-    let verifier = Verifier::default();
-    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_SEAL);
-}
-
-#[test]
-fn test_cobuild_otx_msg_flow() {
-    let mut dl = Resource::default();
-    let mut px = Pickaxer::default();
-
-    let tx = assemble_otx(vec![generate_otx_a2_fail(&mut dl, &mut px)]);
-    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
-    let verifier = Verifier::default();
-    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_FLOW);
-}
-
-#[test]
 fn test_cobuild_otx_double_input() {
     let mut dl = Resource::default();
     let mut px = Pickaxer::default();
@@ -1317,26 +1363,4 @@ fn test_cobuild_otx_double_input() {
     let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
     let verifier = Verifier::default();
     assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_OTX_START_DUP);
-}
-
-#[test]
-fn test_cobuild_otx_noexistent_type_script_hash() {
-    let mut dl = Resource::default();
-    let mut px = Pickaxer::default();
-    let tx = assemble_otx(vec![generate_otx_a3_fail(&mut dl, &mut px)]);
-    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
-    let verifier = Verifier::default();
-    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_TYPESCRIPT_MISSING);
-}
-
-#[test]
-fn test_cobuild_otx_msg_size_all_0() {
-    let mut dl = Resource::default();
-    let mut px = Pickaxer::default();
-
-    let tx = assemble_otx(vec![generate_otx_a4_fail(&mut dl, &mut px)]);
-
-    let tx = ckb_types::core::cell::resolve_transaction(tx, &mut HashSet::new(), &dl, &dl).unwrap();
-    let verifier = Verifier::default();
-    assert_script_error(verifier.verify(&tx, &dl).unwrap_err(), ERROR_WRONG_OTX);
 }
