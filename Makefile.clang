@@ -36,10 +36,10 @@ build/always_success: c/always_success.c
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/secp256k1_data_info_20210801.h: build/dump_secp256k1_data_20210801
+build/secp256k1_data_info.h: build/dump_secp256k1_data
 	$<
 
-build/dump_secp256k1_data_20210801: c/dump_secp256k1_data_20210801.c $(SECP256K1_SRC_20210801)
+build/dump_secp256k1_data: c/dump_secp256k1_data.c $(SECP256K1_SRC_20210801)
 	mkdir -p build
 	$(CC) -I deps/secp256k1-20210801/src -I deps/secp256k1-20210801 -o $@ $<
 
@@ -81,7 +81,7 @@ omni_lock_mol:
 build/cobuild.o: c/cobuild.c c/cobuild.h
 	$(CC) -c $(OMNI_LOCK_CFLAGS) -o $@ $<
 
-build/omni_lock.o: c/omni_lock.c c/omni_lock_supply.h c/omni_lock_acp.h build/secp256k1_data_info_20210801.h $(SECP256K1_SRC_20210801) c/ckb_identity.h
+build/omni_lock.o: c/omni_lock.c c/omni_lock_supply.h c/omni_lock_acp.h build/secp256k1_data_info.h $(SECP256K1_SRC_20210801) c/ckb_identity.h
 	$(CC) -c $(OMNI_LOCK_CFLAGS) -o $@ $<
 
 build/omni_lock: build/omni_lock.o build/cobuild.o
@@ -97,8 +97,8 @@ cobuild_mol:
 	moleculec-c2 --input build/cobuild_basic_mol2.json | clang-format -style=Google > c/cobuild_basic_mol2.h
 
 clean: clean2
-	rm -rf build/secp256k1_data_info_20210801.h build/dump_secp256k1_data_20210801
-	rm -f build/secp256k1_data_20210801
+	rm -rf build/secp256k1_data_info.h build/dump_secp256k1_data
+	rm -f build/secp256k1_data
 	cd deps/secp256k1-20210801 && [ -f "Makefile" ] && make clean
 
 clean2:
