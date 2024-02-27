@@ -17,6 +17,7 @@ int ckb_exit(signed char);
 #include "blockchain-api2.h"
 #include "cobuild_basic_mol2.h"
 #include "cobuild.h"
+#include "molecule2_verify.h"
 
 #include "blake2b_decl_only.h"
 #include "ckb_consts.h"
