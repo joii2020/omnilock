@@ -18,6 +18,7 @@ int ckb_exit(signed char);
 #include "cobuild_basic_mol2.h"
 #include "cobuild_top_level_mol2.h"
 #include "cobuild.h"
+#include "molecule2_verify.h"
 
 #define BLAKE2_IMPL_H
 #define BLAKE2_REF_C
