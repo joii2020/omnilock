@@ -53,8 +53,6 @@ int verify_WitnessArgs(mol2_cursor_t cur) {
 
 int verify_Action(ActionType *action) {
   printf("verify Action");
-  printf("---- cur.size: %d, cur.offse: %d", action->cur.size,
-         action->cur.offset);
   action->t->data(action);
   
   // mol2_verify_fixed_size(&data, SCRIPT_HASH_SIZE);
