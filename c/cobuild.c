@@ -87,13 +87,6 @@ enum CobuildErrorCode {
   ERROR_OVERFLOW,
 };
 
-typedef enum WitnessLayoutId {
-  WitnessLayoutSighashAll = 4278190081,
-  WitnessLayoutSighashAllOnly = 4278190082,
-  WitnessLayoutOtx = 4278190083,
-  WitnessLayoutOtxStart = 4278190084,
-} WitnessLayoutId;
-
 enum MessageCalculationFlow {
   MessageCalculationFlowBlake2b = 0,
 };
@@ -216,6 +209,8 @@ static inline int get_witness_layout(BytesVecType witnesses, uint32_t index,
   if (!existing) {
     return ERROR_MOL2_UNEXPECTED;
   }
+
+  if (verify_WitnessLayout(witness)) return ERROR_GENERAL;
 
   uint32_t id = 0;
   int err = try_union_unpack_id(&witness, &id);
