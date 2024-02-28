@@ -79,13 +79,6 @@ enum CobuildErrorCode {
   ERROR_NO_CALLBACK,
 };
 
-typedef enum WitnessLayoutId {
-  WitnessLayoutSighashAll = 4278190081,
-  WitnessLayoutSighashAllOnly = 4278190082,
-  WitnessLayoutOtx = 4278190083,
-  WitnessLayoutOtxStart = 4278190084,
-} WitnessLayoutId;
-
 enum MessageCalculationFlow {
   MessageCalculationFlowBlake2b = 0,
 };
@@ -809,20 +802,26 @@ exit:
 
 static int get_witness_layout(size_t index,
                               WitnessLayoutId *witness_layout_id) {
-  uint32_t id = 0;
-  uint64_t id_len = sizeof(id);
-  int err = ckb_load_witness(&id, &id_len, 0, index, CKB_SOURCE_INPUT);
-  if (err) return err;
-  if (id_len < sizeof(id)) {
-    return ERROR_GENERAL;
-  }
-  if (id == WitnessLayoutSighashAll || id == WitnessLayoutSighashAllOnly ||
-      id == WitnessLayoutOtx || id == WitnessLayoutOtxStart) {
-    *witness_layout_id = id;
-  } else {
-    return ERROR_GENERAL;
-  }
-  return 0;
+  uint8_t data_source[DEFAULT_DATA_SOURCE_LENGTH];
+
+  int err = 0;
+  mol2_cursor_t witness_cursor;
+  err = ckb_new_witness_cursor(&witness_cursor, data_source, MAX_CACHE_SIZE,
+                               index, CKB_SOURCE_INPUT);
+  if (err == CKB_INDEX_OUT_OF_BOUND) return CKB_INDEX_OUT_OF_BOUND;
+  CHECK2(!err, ERROR_GENERAL);
+
+  CHECK2(!verify_WitnessLayout(witness_cursor), ERROR_GENERAL);
+
+  WitnessLayoutId id;
+  err = mol2_read_at(&witness_cursor, (uint8_t *)&id, MOL2_NUM_T_SIZE);
+  CHECK2(err != MOL2_ERR, ERROR_GENERAL);
+
+  *witness_layout_id = id;
+
+  err = 0;
+exit:
+  return err;
 }
 
 int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
