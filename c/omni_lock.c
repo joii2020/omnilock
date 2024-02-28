@@ -31,6 +31,7 @@ int ckb_exit(signed char);
 #include "rce.h"
 #include "omni_lock_mol2.h"
 #include "cobuild_basic_mol2.h"
+#include "molecule2_verify.h"
 
 #include "omni_lock_acp.h"
 #include "omni_lock_time_lock.h"
@@ -369,7 +370,11 @@ static int get_witness_args_lock(mol2_cursor_t *lock, bool *witness_existing) {
   *witness_existing = witness_args.cur.size > 0;
 
   // witness or witness lock can be empty if owner lock without omni is used
-  if (!*witness_existing) return 0;
+  if (!*witness_existing) {
+    return 0;
+  }
+  err = verify_WitnessArgs(&witness_args);
+  CHECK2(!err, ERROR_INVALID_WITNESS_FORMAT);
 
   BytesOptType mol_lock = witness_args.t->lock(&witness_args);
   if (mol_lock.t->is_some(&mol_lock)) {

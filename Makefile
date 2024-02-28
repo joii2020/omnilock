@@ -79,7 +79,7 @@ omni_lock_mol:
 build/cobuild.o: c/cobuild.c c/cobuild.h c/molecule2_verify.h
 	$(CC) -c $(OMNI_LOCK_CFLAGS) -o $@ $<
 
-build/omni_lock.o: c/omni_lock.c c/omni_lock_supply.h c/omni_lock_acp.h build/secp256k1_data_info.h $(SECP256K1_SRC) c/ckb_identity.h
+build/omni_lock.o: c/omni_lock.c c/omni_lock_supply.h c/omni_lock_acp.h build/secp256k1_data_info.h $(SECP256K1_SRC) c/ckb_identity.h c/cobuild_basic_mol2.h
 	$(CC) -c $(OMNI_LOCK_CFLAGS) -o $@ $<
 
 build/omni_lock: build/omni_lock.o build/cobuild.o

@@ -3,7 +3,6 @@
 
 #include "molecule2_reader.h"
 
-
 #define SCRIPT_HASH_SIZE 32
 
 typedef enum WitnessLayoutId {
@@ -12,6 +11,11 @@ typedef enum WitnessLayoutId {
   WitnessLayoutOtx = 4278190083,
   WitnessLayoutOtxStart = 4278190084,
 } WitnessLayoutId;
+
+int verify_WitnessArgs(WitnessArgsType *witness);
+int verify_WitnessLayout(mol2_cursor_t cur);
+
+#ifndef MOLECULEC_C2_DECLARATION_ONLY
 
 // If it is get by other struct, not need to verify
 int verify_Bytes(mol2_cursor_t cur) {
@@ -34,17 +38,16 @@ int verify_BytesOpt(mol2_cursor_t cur) {
   return 0;
 }
 
-int verify_WitnessArgs(mol2_cursor_t cur) {
+int verify_WitnessArgs(WitnessArgsType *witness) {
   int err = 0;
 
-  WitnessArgsType table = make_WitnessArgs(&cur);
-  BytesOptType lock = table.t->lock(&table);
+  BytesOptType lock = witness->t->lock(witness);
   err = verify_BytesOpt(lock.cur);
   if (err) return err;
-  BytesOptType input_type = table.t->input_type(&table);
+  BytesOptType input_type = witness->t->input_type(witness);
   err = verify_BytesOpt(input_type.cur);
   if (err) return err;
-  BytesOptType output_type = table.t->output_type(&table);
+  BytesOptType output_type = witness->t->output_type(witness);
   err = verify_BytesOpt(output_type.cur);
   if (err) return err;
 
@@ -54,7 +57,7 @@ int verify_WitnessArgs(mol2_cursor_t cur) {
 int verify_Action(ActionType *action) {
   printf("verify Action");
   action->t->data(action);
-  
+
   // mol2_verify_fixed_size(&data, SCRIPT_HASH_SIZE);
   mol2_cursor_t script_hash = action->t->script_hash(action);
   mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE);
@@ -208,5 +211,7 @@ int verify_WitnessLayout(mol2_cursor_t cur) {
       return MOL2_ERR_DATA;
   }
 }
+
+#endif  // MOLECULEC_C2_DECLARATION_ONLY
 
 #endif
