@@ -18,16 +18,7 @@ int verify_WitnessLayout(mol2_cursor_t cur);
 #ifndef MOLECULEC_C2_DECLARATION_ONLY
 
 // If it is get by other struct, not need to verify
-int verify_Bytes(mol2_cursor_t cur) {
-  BytesType bytes = make_Bytes(&cur);
-  uint32_t len = bytes.t->len(&bytes);
-  for (uint32_t i = 0; i < len; i++) {
-    bool existing = false;
-    bytes.t->get(&bytes, i, &existing);
-    if (!existing) return MOL2_ERR;
-  }
-  return 0;
-}
+int verify_Bytes(mol2_cursor_t cur) { return mol2_fixvec_verify(cur, 1); }
 
 int verify_BytesOpt(mol2_cursor_t cur) {
   BytesOptType bytes_opt = make_BytesOpt(&cur);
