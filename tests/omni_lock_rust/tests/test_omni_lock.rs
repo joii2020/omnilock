@@ -868,7 +868,8 @@ fn test_cobuild_sighashall_dup() {
     let mut verifier = verify_tx(resolved_tx, data_loader);
     verifier.set_debug_printer(debug_printer);
     let verify_result = verifier.verify(MAX_CYCLES);
-    assert_script_error(verify_result.unwrap_err(), 113);
+    verify_result.unwrap_err();
+    // verify_WitnessLayout will return panic (return code: 7)
 }
 
 #[test]

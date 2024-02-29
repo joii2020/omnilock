@@ -13,7 +13,7 @@ typedef enum WitnessLayoutId {
 } WitnessLayoutId;
 
 int verify_WitnessArgs(WitnessArgsType *witness);
-int verify_WitnessLayout(mol2_cursor_t cur);
+int verify_WitnessLayout(WitnessLayoutType *witness);
 
 #ifndef MOLECULEC_C2_DECLARATION_ONLY
 
@@ -112,55 +112,48 @@ int verify_SealPairVec(SealPairVecType seals) {
   return 0;
 }
 
-int verify_SighashAll(mol2_cursor_t cur) {
+int verify_SighashAll(SighashAllType *sighash_all) {
   printf("verify SighashAll");
 
-  SighashAllType sighash_all = make_SighashAll(&cur);
-  MessageType message = sighash_all.t->message(&sighash_all);
+  MessageType message = sighash_all->t->message(sighash_all);
   int err = verify_Message(&message);
   if (err) return err;
 
-  sighash_all.t->seal(&sighash_all);
+  sighash_all->t->seal(sighash_all);
   return 0;
 }
 
-int verify_SighashAllOnly(mol2_cursor_t cur) {
+int verify_SighashAllOnly(SighashAllOnlyType *signhash_all_only) {
   printf("verify SighashAllOnly");
-
-  SighashAllOnlyType signhash_all_only = make_SighashAllOnly(&cur);
-  signhash_all_only.t->seal(&signhash_all_only);
+  signhash_all_only->t->seal(signhash_all_only);
 
   return 0;
 }
 
-int verify_Otx(mol2_cursor_t cur) {
+int verify_Otx(OtxType *otx) {
   printf("verify Otx");
 
-  OtxType otx = make_Otx(&cur);
-
-  Otx_get_input_cells_impl(&otx);
-  Otx_get_output_cells_impl(&otx);
-  Otx_get_cell_deps_impl(&otx);
-  Otx_get_header_deps_impl(&otx);
-  MessageType message = Otx_get_message_impl(&otx);
+  Otx_get_input_cells_impl(otx);
+  Otx_get_output_cells_impl(otx);
+  Otx_get_cell_deps_impl(otx);
+  Otx_get_header_deps_impl(otx);
+  MessageType message = Otx_get_message_impl(otx);
   int err = verify_Message(&message);
   if (err) return err;
-  SealPairVecType seals = Otx_get_seals_impl(&otx);
+  SealPairVecType seals = Otx_get_seals_impl(otx);
   err = verify_SealPairVec(seals);
   if (err) return err;
 
   return 0;
 }
 
-int verify_OtxStart(mol2_cursor_t cur) {
+int verify_OtxStart(OtxStartType *otx_start) {
   printf("verify OtxStart");
 
-  OtxStartType otx_start = make_OtxStart(&cur);
-
-  otx_start.t->start_input_cell(&otx_start);
-  otx_start.t->start_output_cell(&otx_start);
-  otx_start.t->start_cell_deps(&otx_start);
-  otx_start.t->start_header_deps(&otx_start);
+  otx_start->t->start_input_cell(otx_start);
+  otx_start->t->start_output_cell(otx_start);
+  otx_start->t->start_cell_deps(otx_start);
+  otx_start->t->start_header_deps(otx_start);
 
   return 0;
 }
@@ -174,33 +167,40 @@ int get_union_id(mol2_cursor_t *cur, uint32_t *union_id) {
   return 0;
 }
 
-int verify_WitnessLayout(mol2_cursor_t cur) {
+int verify_WitnessLayout(WitnessLayoutType *witness) {
   printf("verify WitnessLayout");
+
+  // uint32_t union_id = witness->t->item_id(witness);
 
   int err = 0;
   uint32_t union_id = 0;
-  err = get_union_id(&cur, &union_id);
+  err = get_union_id(&witness->cur, &union_id);
   if (err) return err;
 
   // If use mol2_union_unpack, panic may be hit, causing problems in other code.
-  mol2_cursor_t union_item = cur;
-  union_item.offset = cur.offset + MOL2_NUM_T_SIZE;
-  union_item.size = cur.size - MOL2_NUM_T_SIZE;
+  // mol2_cursor_t union_item = cur;
+  // union_item.offset = cur.offset + MOL2_NUM_T_SIZE;
+  // union_item.size = cur.size - MOL2_NUM_T_SIZE;
 
-  // TODO testcase
   switch (union_id) {
     case WitnessLayoutSighashAll:
-      return verify_SighashAll(union_item);
+      SighashAllType sighash_all = witness->t->as_SighashAll(witness);
+      return verify_SighashAll(&sighash_all);
     case WitnessLayoutSighashAllOnly:
-      return verify_SighashAllOnly(union_item);
+      SighashAllOnlyType sighash_all_only =
+          witness->t->as_SighashAllOnly(witness);
+      return verify_SighashAllOnly(&sighash_all_only);
     case WitnessLayoutOtx:
-      return verify_Otx(union_item);
+      OtxType otx = witness->t->as_Otx(witness);
+      return verify_Otx(&otx);
     case WitnessLayoutOtxStart:
-      return verify_OtxStart(union_item);
+      OtxStartType otx_start = witness->t->as_OtxStart(witness);
+      return verify_OtxStart(&otx_start);
     default:
       printf("error: unknow WitnessLayout id: %ux", union_id);
       return MOL2_ERR_DATA;
   }
+  return 0;
 }
 
 #endif  // MOLECULEC_C2_DECLARATION_ONLY

@@ -210,23 +210,15 @@ static inline int get_witness_layout(BytesVecType witnesses, uint32_t index,
     return ERROR_MOL2_UNEXPECTED;
   }
 
-  if (verify_WitnessLayout(witness)) return ERROR_GENERAL;
-
-  uint32_t id = 0;
-  int err = try_union_unpack_id(&witness, &id);
-  if (err != 0) {
-    return err;
-  }
-  // TODO: validate full WitnessLayout structure
-  if (id == WitnessLayoutSighashAll || id == WitnessLayoutSighashAllOnly ||
-      id == WitnessLayoutOtx || id == WitnessLayoutOtxStart) {
-    if (witness_layout != NULL) {
-      *witness_layout = make_WitnessLayout(&witness);
-    }
-    return 0;
-  } else {
+  WitnessLayoutType witness_layout2 = make_WitnessLayout(&witness);
+  if (verify_WitnessLayout(&witness_layout2)) {
+    printf("verify WitnessLayout failed");
     return ERROR_GENERAL;
   }
+  if (witness_layout != NULL) {
+    *witness_layout = witness_layout2;
+  }
+  return 0;
 }
 
 // for lock script with message, the other witness in script group except first
@@ -892,7 +884,6 @@ int ckb_cobuild_entry(const Env *env, ScriptEntryType callback,
     }
   }
   if (found) {
-    // TODO
     printf("extra callback is invoked");
     execution_count++;
     err = ckb_cobuild_normal_entry(env, callback);

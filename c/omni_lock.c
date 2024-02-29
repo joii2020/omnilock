@@ -405,7 +405,8 @@ int main() {
       if (err == 0) {
         if (witness_cursor.size > 0) {
           WitnessArgsType witness_args = make_WitnessArgs(&witness_cursor);
-          CHECK2(verify_WitnessArgs(&witness_args), ERROR_INVALID_WITNESS_FORMAT);
+          CHECK2(!verify_WitnessArgs(&witness_args),
+                 ERROR_INVALID_WITNESS_FORMAT);
 
           BytesOptType lock_opt = witness_args.t->lock(&witness_args);
           if (lock_opt.t->is_some(&lock_opt)) {
