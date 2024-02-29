@@ -187,7 +187,6 @@ int verify_WitnessLayout(mol2_cursor_t cur) {
   union_item.offset = cur.offset + MOL2_NUM_T_SIZE;
   union_item.size = cur.size - MOL2_NUM_T_SIZE;
 
-  // TODO testcase
   switch (union_id) {
     case WitnessLayoutSighashAll:
       return verify_SighashAll(union_item);

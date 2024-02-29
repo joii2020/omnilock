@@ -364,6 +364,8 @@ int ckb_fetch_message(bool *has_message, mol2_cursor_t *message_cursor,
       err = ckb_new_witness_cursor(&cursor, data_source, cache_len, index,
                                    CKB_SOURCE_INPUT);
       CHECK(err);
+      err = verify_WitnessLayout(cursor);
+      CHECK(err);
       mol2_union_t uni = mol2_union_unpack(&cursor);
       /* See molecule defintion, the index is 0:
       table SighashAll {
@@ -1030,7 +1032,6 @@ int ckb_cobuild_entry(ScriptEntryType callback, bool *cobuild_enabled) {
     }
   }
   if (found) {
-    // TODO
     printf("extra callback is invoked");
     execution_count++;
     err = ckb_cobuild_normal_entry(callback);
