@@ -1,6 +1,8 @@
 #ifndef __MOLECULE2_VERIFY_H__
 #define __MOLECULE2_VERIFY_H__
 
+#include "cobuild_basic_mol2.h"
+#include "cobuild_top_level_mol2.h"
 #include "molecule2_reader.h"
 
 #define SCRIPT_HASH_SIZE 32
@@ -183,22 +185,27 @@ int verify_WitnessLayout(WitnessLayoutType *witness) {
   // union_item.size = cur.size - MOL2_NUM_T_SIZE;
 
   switch (union_id) {
-    case WitnessLayoutSighashAll:
+    case WitnessLayoutSighashAll: {
       SighashAllType sighash_all = witness->t->as_SighashAll(witness);
       return verify_SighashAll(&sighash_all);
-    case WitnessLayoutSighashAllOnly:
+    }
+    case WitnessLayoutSighashAllOnly: {
       SighashAllOnlyType sighash_all_only =
           witness->t->as_SighashAllOnly(witness);
       return verify_SighashAllOnly(&sighash_all_only);
-    case WitnessLayoutOtx:
+    }
+    case WitnessLayoutOtx: {
       OtxType otx = witness->t->as_Otx(witness);
       return verify_Otx(&otx);
-    case WitnessLayoutOtxStart:
+    }
+    case WitnessLayoutOtxStart: {
       OtxStartType otx_start = witness->t->as_OtxStart(witness);
       return verify_OtxStart(&otx_start);
-    default:
+    }
+    default: {
       printf("error: unknow WitnessLayout id: %ux", union_id);
       return MOL2_ERR_DATA;
+    }
   }
   return 0;
 }
