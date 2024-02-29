@@ -524,20 +524,18 @@ int ckb_cobuild_normal_entry(const Env *env, ScriptEntryType callback) {
     err = ckb_new_witness_cursor(&witness, seal_source, MAX_CACHE_SIZE, 0,
                                  CKB_SOURCE_GROUP_INPUT);
     CHECK(err);
-    uint32_t id = 0;
-    err = try_union_unpack_id(&witness, &id);
-    CHECK(err);
+    WitnessLayoutType witness_layout = make_WitnessLayout(&witness);
+    CHECK2(!verify_WitnessLayout(&witness_layout), ERROR_SIGHASHALL_NOSEAL);
+
+    uint32_t id = witness_layout.t->item_id(&witness_layout);
     switch (id) {
       case WitnessLayoutSighashAll: {
-        // TODO: validate full WitnessLayout structure
-        WitnessLayoutType layout = make_WitnessLayout(&witness);
-        SighashAllType s = layout.t->as_SighashAll(&layout);
+        SighashAllType s = witness_layout.t->as_SighashAll(&witness_layout);
         original_seal = s.t->seal(&s);
       } break;
       case WitnessLayoutSighashAllOnly: {
-        // TODO: validate full WitnessLayout structure
-        WitnessLayoutType layout = make_WitnessLayout(&witness);
-        SighashAllOnlyType o = layout.t->as_SighashAllOnly(&layout);
+        SighashAllOnlyType o =
+            witness_layout.t->as_SighashAllOnly(&witness_layout);
         original_seal = o.t->seal(&o);
       } break;
       default: {
