@@ -48,8 +48,6 @@ exit:
 }
 
 int verify_Action(ActionType *action) {
-  printf("verify Action");
-
   int err = 0;
   mol2_cursor_t data = mol2_table_slice_by_index(&action->cur, 2);
   CHECK(verify_Bytes(data));
@@ -66,8 +64,6 @@ exit:
 }
 
 int verify_ActionVec(ActionVecType *actions) {
-  printf("verify ActionVec");
-
   int err = 0;
 
   uint32_t len = actions->t->len(actions);
@@ -83,8 +79,6 @@ exit:
 }
 
 int verify_Message(MessageType *message) {
-  printf("verify Message");
-
   int err = 0;
   ActionVecType actions = message->t->actions(message);
   CHECK(verify_ActionVec(&actions));
@@ -107,8 +101,6 @@ exit:
 }
 
 int verify_SealPairVec(SealPairVecType *seals) {
-  printf("verify SealPairVec");
-
   int err = 0;
   uint32_t len = seals->t->len(seals);
   for (uint32_t i = 0; i < len; i++) {
@@ -123,8 +115,6 @@ exit:
 }
 
 int verify_SighashAll(SighashAllType *sighash_all) {
-  printf("verify SighashAll");
-
   int err = 0;
   MessageType message = sighash_all->t->message(sighash_all);
   CHECK(verify_Message(&message));
@@ -137,8 +127,6 @@ exit:
 }
 
 int verify_SighashAllOnly(SighashAllOnlyType *signhash_all_only) {
-  printf("verify SighashAllOnly");
-
   int err = 0;
   mol2_cursor_t seal = mol2_table_slice_by_index(&signhash_all_only->cur, 0);
   CHECK(verify_Bytes(seal));
@@ -148,8 +136,6 @@ exit:
 }
 
 int verify_Otx(OtxType *otx) {
-  printf("verify Otx");
-
   int err = 0;
   Otx_get_input_cells_impl(otx);
   Otx_get_output_cells_impl(otx);
@@ -165,8 +151,6 @@ exit:
 }
 
 int verify_OtxStart(OtxStartType *otx_start) {
-  printf("verify OtxStart");
-
   otx_start->t->start_input_cell(otx_start);
   otx_start->t->start_output_cell(otx_start);
   otx_start->t->start_cell_deps(otx_start);
@@ -185,15 +169,9 @@ int get_union_id(mol2_cursor_t *cur, uint32_t *union_id) {
 }
 
 int verify_WitnessLayout(WitnessLayoutType *witness) {
-  printf("verify WitnessLayout");
-
-  // uint32_t union_id = witness->t->item_id(witness);
-
   int err = 0;
   uint32_t union_id = 0;
   CHECK(get_union_id(&witness->cur, &union_id));
-
-  // If use mol2_union_unpack, panic may be hit, causing problems in other code.
 
   switch (union_id) {
     case WitnessLayoutSighashAll: {
