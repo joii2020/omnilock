@@ -22,12 +22,10 @@ int verify_WitnessLayout(WitnessLayoutType *witness);
 #ifndef MOLECULEC_C2_DECLARATION_ONLY
 
 // If it is get by other struct, not need to verify
-int verify_Bytes(mol2_cursor_t cur) {
-  return mol2_fixvec_verify(&cur, 1) == MOL2_OK ? 0 : MOL2_ERR_DATA;
-}
+int verify_Bytes(mol2_cursor_t cur) { return mol2_fixvec_verify(&cur, 1); }
 
 int verify_BytesOpt(mol2_cursor_t cur) {
-  int err = 0;
+  int err = MOL2_OK;
   BytesOptType bytes_opt = make_BytesOpt(&cur);
 
   if (bytes_opt.t->is_some(&bytes_opt)) {
@@ -38,7 +36,7 @@ exit:
 }
 
 int verify_WitnessArgs(WitnessArgsType *witness) {
-  int err = 0;
+  int err = MOL2_OK;
 
   BytesOptType lock = witness->t->lock(witness);
   CHECK(verify_BytesOpt(lock.cur));
@@ -52,31 +50,28 @@ exit:
 }
 
 int verify_Action(ActionType *action) {
-  int err = 0;
+  int err = MOL2_OK;
   mol2_cursor_t data = mol2_table_slice_by_index(&action->cur, 2);
   CHECK(verify_Bytes(data));
 
   mol2_cursor_t script_hash = action->t->script_hash(action);
-  CHECK2(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE));
 
   mol2_cursor_t script_info_hash = action->t->script_info_hash(action);
-  CHECK2(
-      mol2_verify_fixed_size(&script_info_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
-      MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&script_info_hash, BLAKE2B_BLOCK_SIZE));
 
 exit:
   return err;
 }
 
 int verify_ActionVec(ActionVecType *actions) {
-  int err = 0;
+  int err = MOL2_OK;
 
   uint32_t len = actions->t->len(actions);
   for (uint32_t i = 0; i < len; i++) {
     bool existing = false;
     ActionType action = actions->t->get(actions, i, &existing);
-    CHECK2(existing, MOL2_ERR_DATA);
+    CHECK2(existing, MOL2_ERR_INDEX_OUT_OF_BOUNDS);
     CHECK(verify_Action(&action));
   }
 
@@ -85,7 +80,7 @@ exit:
 }
 
 int verify_Message(MessageType *message) {
-  int err = 0;
+  int err = MOL2_OK;
   ActionVecType actions = message->t->actions(message);
   CHECK(verify_ActionVec(&actions));
 
@@ -94,10 +89,9 @@ exit:
 }
 
 int verify_SealPair(SealPairType *seal_pair) {
-  int err = 0;
+  int err = MOL2_OK;
   mol2_cursor_t script_hash = seal_pair->t->script_hash(seal_pair);
-  CHECK2(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE));
 
   mol2_cursor_t seal = mol2_table_slice_by_index(&seal_pair->cur, 1);
   CHECK(verify_Bytes(seal));
@@ -107,12 +101,12 @@ exit:
 }
 
 int verify_SealPairVec(SealPairVecType *seals) {
-  int err = 0;
+  int err = MOL2_OK;
   uint32_t len = seals->t->len(seals);
   for (uint32_t i = 0; i < len; i++) {
     bool existing = false;
     SealPairType seal_pair = seals->t->get(seals, i, &existing);
-    CHECK2(existing, MOL2_ERR_DATA);
+    CHECK2(existing, MOL2_ERR_INDEX_OUT_OF_BOUNDS);
     CHECK(verify_SealPair(&seal_pair));
   }
 
@@ -121,7 +115,7 @@ exit:
 }
 
 int verify_SighashAll(SighashAllType *sighash_all) {
-  int err = 0;
+  int err = MOL2_OK;
   MessageType message = sighash_all->t->message(sighash_all);
   CHECK(verify_Message(&message));
 
@@ -133,7 +127,7 @@ exit:
 }
 
 int verify_SighashAllOnly(SighashAllOnlyType *signhash_all_only) {
-  int err = 0;
+  int err = MOL2_OK;
   mol2_cursor_t seal = mol2_table_slice_by_index(&signhash_all_only->cur, 0);
   CHECK(verify_Bytes(seal));
 
@@ -142,19 +136,15 @@ exit:
 }
 
 int verify_Otx(OtxType *otx) {
-  int err = 0;
+  int err = MOL2_OK;
   mol2_cursor_t input_cells = mol2_table_slice_by_index(&otx->cur, 0);
-  CHECK2(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE));
   mol2_cursor_t output_cells = mol2_table_slice_by_index(&otx->cur, 1);
-  CHECK2(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE));
   mol2_cursor_t cell_deps = mol2_table_slice_by_index(&otx->cur, 2);
-  CHECK2(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE));
   mol2_cursor_t header_deps = mol2_table_slice_by_index(&otx->cur, 3);
-  CHECK2(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE));
   MessageType message = Otx_get_message_impl(otx);
   CHECK(verify_Message(&message));
   SealPairVecType seals = Otx_get_seals_impl(otx);
@@ -165,19 +155,15 @@ exit:
 }
 
 int verify_OtxStart(OtxStartType *otx_start) {
-  int err = 0;
+  int err = MOL2_OK;
   mol2_cursor_t input_cells = mol2_table_slice_by_index(&otx_start->cur, 0);
-  CHECK2(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE));
   mol2_cursor_t output_cells = mol2_table_slice_by_index(&otx_start->cur, 1);
-  CHECK2(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE));
   mol2_cursor_t cell_deps = mol2_table_slice_by_index(&otx_start->cur, 2);
-  CHECK2(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE));
   mol2_cursor_t header_deps = mol2_table_slice_by_index(&otx_start->cur, 3);
-  CHECK2(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE));
 exit:
   return err;
 }
@@ -185,14 +171,14 @@ exit:
 int get_union_id(mol2_cursor_t *cur, uint32_t *union_id) {
   uint32_t len = mol2_read_at(cur, (uint8_t *)union_id, MOL2_NUM_T_SIZE);
   if (len != MOL2_NUM_T_SIZE) {
-    return MOL2_ERR_DATA;
+    return MOL2_ERR_OVERFLOW;
   }
 
-  return 0;
+  return MOL2_OK;
 }
 
 int verify_WitnessLayout(WitnessLayoutType *witness) {
-  int err = 0;
+  int err = MOL2_OK;
   uint32_t union_id = 0;
   CHECK(get_union_id(&witness->cur, &union_id));
 
@@ -216,7 +202,7 @@ int verify_WitnessLayout(WitnessLayoutType *witness) {
     }
     default: {
       printf("error: unknow WitnessLayout id: %u", union_id);
-      return MOL2_ERR_DATA;
+      return MOL2_ERR_UNKNOWN_ITEM;
     }
   }
 
