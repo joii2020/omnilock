@@ -5,7 +5,9 @@
 #include "cobuild_top_level_mol2.h"
 #include "molecule2_reader.h"
 
-#define SCRIPT_HASH_SIZE 32
+#ifndef BLAKE2B_BLOCK_SIZE
+#define BLAKE2B_BLOCK_SIZE 32
+#endif  // BLAKE2B_BLOCK_SIZE
 
 typedef enum WitnessLayoutId {
   WitnessLayoutSighashAll = 4278190081,
@@ -20,7 +22,9 @@ int verify_WitnessLayout(WitnessLayoutType *witness);
 #ifndef MOLECULEC_C2_DECLARATION_ONLY
 
 // If it is get by other struct, not need to verify
-int verify_Bytes(mol2_cursor_t cur) { return mol2_fixvec_verify(&cur, 1); }
+int verify_Bytes(mol2_cursor_t cur) {
+  return mol2_fixvec_verify(&cur, 1) == MOL2_OK ? 0 : MOL2_ERR_DATA;
+}
 
 int verify_BytesOpt(mol2_cursor_t cur) {
   int err = 0;
@@ -53,11 +57,13 @@ int verify_Action(ActionType *action) {
   CHECK(verify_Bytes(data));
 
   mol2_cursor_t script_hash = action->t->script_hash(action);
-  CHECK2(mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
+  CHECK2(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
          MOL2_ERR_DATA);
+
   mol2_cursor_t script_info_hash = action->t->script_info_hash(action);
-  CHECK2(mol2_verify_fixed_size(&script_info_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
-         MOL2_ERR_DATA);
+  CHECK2(
+      mol2_verify_fixed_size(&script_info_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
+      MOL2_ERR_DATA);
 
 exit:
   return err;
@@ -70,7 +76,7 @@ int verify_ActionVec(ActionVecType *actions) {
   for (uint32_t i = 0; i < len; i++) {
     bool existing = false;
     ActionType action = actions->t->get(actions, i, &existing);
-    CHECK2(existing, MOL2_ERR);
+    CHECK2(existing, MOL2_ERR_DATA);
     CHECK(verify_Action(&action));
   }
 
@@ -90,7 +96,7 @@ exit:
 int verify_SealPair(SealPairType *seal_pair) {
   int err = 0;
   mol2_cursor_t script_hash = seal_pair->t->script_hash(seal_pair);
-  CHECK2(mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
+  CHECK2(mol2_verify_fixed_size(&script_hash, BLAKE2B_BLOCK_SIZE) == MOL2_OK,
          MOL2_ERR_DATA);
 
   mol2_cursor_t seal = mol2_table_slice_by_index(&seal_pair->cur, 1);
