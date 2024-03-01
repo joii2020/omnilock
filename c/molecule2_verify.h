@@ -201,7 +201,6 @@ int verify_WitnessLayout(WitnessLayoutType *witness) {
       return verify_OtxStart(&otx_start);
     }
     default: {
-      printf("error: unknow WitnessLayout id: %u", union_id);
       return MOL2_ERR_UNKNOWN_ITEM;
     }
   }

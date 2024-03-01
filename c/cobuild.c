@@ -211,7 +211,6 @@ static inline int get_witness_layout(BytesVecType witnesses, uint32_t index,
 
   WitnessLayoutType witness_layout2 = make_WitnessLayout(&witness);
   if (verify_WitnessLayout(&witness_layout2)) {
-    printf("verify WitnessLayout failed");
     return ERROR_GENERAL;
   }
   if (witness_layout != NULL) {
