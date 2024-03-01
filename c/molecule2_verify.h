@@ -23,130 +23,145 @@ int verify_WitnessLayout(WitnessLayoutType *witness);
 int verify_Bytes(mol2_cursor_t cur) { return mol2_fixvec_verify(&cur, 1); }
 
 int verify_BytesOpt(mol2_cursor_t cur) {
+  int err = 0;
   BytesOptType bytes_opt = make_BytesOpt(&cur);
 
   if (bytes_opt.t->is_some(&bytes_opt)) {
-    bytes_opt.t->unwrap(&bytes_opt);
+    CHECK(verify_Bytes(bytes_opt.cur));
   }
-  return 0;
+exit:
+  return err;
 }
 
 int verify_WitnessArgs(WitnessArgsType *witness) {
   int err = 0;
 
   BytesOptType lock = witness->t->lock(witness);
-  err = verify_BytesOpt(lock.cur);
-  if (err) return err;
+  CHECK(verify_BytesOpt(lock.cur));
   BytesOptType input_type = witness->t->input_type(witness);
-  err = verify_BytesOpt(input_type.cur);
-  if (err) return err;
+  CHECK(verify_BytesOpt(input_type.cur));
   BytesOptType output_type = witness->t->output_type(witness);
-  err = verify_BytesOpt(output_type.cur);
-  if (err) return err;
+  CHECK(verify_BytesOpt(output_type.cur));
 
+exit:
   return err;
 }
 
 int verify_Action(ActionType *action) {
   printf("verify Action");
-  action->t->data(action);
 
-  // mol2_verify_fixed_size(&data, SCRIPT_HASH_SIZE);
+  int err = 0;
+  mol2_cursor_t data = mol2_table_slice_by_index(&action->cur, 2);
+  CHECK(verify_Bytes(data));
+
   mol2_cursor_t script_hash = action->t->script_hash(action);
-  mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE);
+  CHECK2(mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
   mol2_cursor_t script_info_hash = action->t->script_info_hash(action);
-  mol2_verify_fixed_size(&script_info_hash, SCRIPT_HASH_SIZE);
+  CHECK2(mol2_verify_fixed_size(&script_info_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
 
-  return 0;
+exit:
+  return err;
 }
 
 int verify_ActionVec(ActionVecType *actions) {
   printf("verify ActionVec");
+
   int err = 0;
+
   uint32_t len = actions->t->len(actions);
   for (uint32_t i = 0; i < len; i++) {
     bool existing = false;
     ActionType action = actions->t->get(actions, i, &existing);
-    if (!existing) return MOL2_ERR;
-
-    err = verify_Action(&action);
-    if (err) return err;
+    CHECK2(existing, MOL2_ERR);
+    CHECK(verify_Action(&action));
   }
 
-  return 0;
+exit:
+  return err;
 }
 
 int verify_Message(MessageType *message) {
   printf("verify Message");
 
-  ActionVecType actions = message->t->actions(message);
-  int err = verify_ActionVec(&actions);
-  if (err) return err;
-
-  return 0;
-}
-
-int verify_SealPair(SealPairType seal_pair) {
   int err = 0;
-  mol2_cursor_t script_hash = seal_pair.t->script_hash(&seal_pair);
-  err = mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE);
-  if (err != MOL2_OK) return MOL2_ERR_DATA;
+  ActionVecType actions = message->t->actions(message);
+  CHECK(verify_ActionVec(&actions));
 
-  seal_pair.t->seal(&seal_pair);
-
-  return 0;
+exit:
+  return err;
 }
 
-int verify_SealPairVec(SealPairVecType seals) {
+int verify_SealPair(SealPairType *seal_pair) {
+  int err = 0;
+  mol2_cursor_t script_hash = seal_pair->t->script_hash(seal_pair);
+  CHECK2(mol2_verify_fixed_size(&script_hash, SCRIPT_HASH_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+
+  mol2_cursor_t seal = mol2_table_slice_by_index(&seal_pair->cur, 1);
+  CHECK(verify_Bytes(seal));
+
+exit:
+  return err;
+}
+
+int verify_SealPairVec(SealPairVecType *seals) {
   printf("verify SealPairVec");
 
   int err = 0;
-  uint32_t len = seals.t->len(&seals);
+  uint32_t len = seals->t->len(seals);
   for (uint32_t i = 0; i < len; i++) {
     bool existing = false;
-    SealPairType seal_pair = seals.t->get(&seals, i, &existing);
-    if (!existing) return MOL2_ERR_DATA;
-
-    err = verify_SealPair(seal_pair);
-    if (err) return err;
+    SealPairType seal_pair = seals->t->get(seals, i, &existing);
+    CHECK2(existing, MOL2_ERR_DATA);
+    CHECK(verify_SealPair(&seal_pair));
   }
 
-  return 0;
+exit:
+  return err;
 }
 
 int verify_SighashAll(SighashAllType *sighash_all) {
   printf("verify SighashAll");
 
+  int err = 0;
   MessageType message = sighash_all->t->message(sighash_all);
-  int err = verify_Message(&message);
-  if (err) return err;
+  CHECK(verify_Message(&message));
 
-  sighash_all->t->seal(sighash_all);
-  return 0;
+  mol2_cursor_t seal = mol2_table_slice_by_index(&sighash_all->cur, 1);
+  CHECK(verify_Bytes(seal));
+
+exit:
+  return err;
 }
 
 int verify_SighashAllOnly(SighashAllOnlyType *signhash_all_only) {
   printf("verify SighashAllOnly");
-  signhash_all_only->t->seal(signhash_all_only);
 
-  return 0;
+  int err = 0;
+  mol2_cursor_t seal = mol2_table_slice_by_index(&signhash_all_only->cur, 0);
+  CHECK(verify_Bytes(seal));
+
+exit:
+  return err;
 }
 
 int verify_Otx(OtxType *otx) {
   printf("verify Otx");
 
+  int err = 0;
   Otx_get_input_cells_impl(otx);
   Otx_get_output_cells_impl(otx);
   Otx_get_cell_deps_impl(otx);
   Otx_get_header_deps_impl(otx);
   MessageType message = Otx_get_message_impl(otx);
-  int err = verify_Message(&message);
-  if (err) return err;
+  CHECK(verify_Message(&message));
   SealPairVecType seals = Otx_get_seals_impl(otx);
-  err = verify_SealPairVec(seals);
-  if (err) return err;
+  CHECK(verify_SealPairVec(&seals));
 
-  return 0;
+exit:
+  return err;
 }
 
 int verify_OtxStart(OtxStartType *otx_start) {
@@ -176,13 +191,9 @@ int verify_WitnessLayout(WitnessLayoutType *witness) {
 
   int err = 0;
   uint32_t union_id = 0;
-  err = get_union_id(&witness->cur, &union_id);
-  if (err) return err;
+  CHECK(get_union_id(&witness->cur, &union_id));
 
   // If use mol2_union_unpack, panic may be hit, causing problems in other code.
-  // mol2_cursor_t union_item = cur;
-  // union_item.offset = cur.offset + MOL2_NUM_T_SIZE;
-  // union_item.size = cur.size - MOL2_NUM_T_SIZE;
 
   switch (union_id) {
     case WitnessLayoutSighashAll: {
@@ -203,11 +214,13 @@ int verify_WitnessLayout(WitnessLayoutType *witness) {
       return verify_OtxStart(&otx_start);
     }
     default: {
-      printf("error: unknow WitnessLayout id: %ux", union_id);
+      printf("error: unknow WitnessLayout id: %u", union_id);
       return MOL2_ERR_DATA;
     }
   }
-  return 0;
+
+exit:
+  return err;
 }
 
 #endif  // MOLECULEC_C2_DECLARATION_ONLY

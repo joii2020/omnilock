@@ -11,7 +11,6 @@
 #define MOL2_EXIT ckb_exit
 #endif
 int ckb_exit(signed char);
-#define MOLECULEC_C2_DECLARATION_ONLY
 
 #include "molecule2_reader.h"
 #include "blockchain-api2.h"
