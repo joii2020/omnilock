@@ -143,10 +143,18 @@ exit:
 
 int verify_Otx(OtxType *otx) {
   int err = 0;
-  Otx_get_input_cells_impl(otx);
-  Otx_get_output_cells_impl(otx);
-  Otx_get_cell_deps_impl(otx);
-  Otx_get_header_deps_impl(otx);
+  mol2_cursor_t input_cells = mol2_table_slice_by_index(&otx->cur, 0);
+  CHECK2(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t output_cells = mol2_table_slice_by_index(&otx->cur, 1);
+  CHECK2(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t cell_deps = mol2_table_slice_by_index(&otx->cur, 2);
+  CHECK2(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t header_deps = mol2_table_slice_by_index(&otx->cur, 3);
+  CHECK2(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
   MessageType message = Otx_get_message_impl(otx);
   CHECK(verify_Message(&message));
   SealPairVecType seals = Otx_get_seals_impl(otx);
@@ -157,12 +165,21 @@ exit:
 }
 
 int verify_OtxStart(OtxStartType *otx_start) {
-  otx_start->t->start_input_cell(otx_start);
-  otx_start->t->start_output_cell(otx_start);
-  otx_start->t->start_cell_deps(otx_start);
-  otx_start->t->start_header_deps(otx_start);
-
-  return 0;
+  int err = 0;
+  mol2_cursor_t input_cells = mol2_table_slice_by_index(&otx_start->cur, 0);
+  CHECK2(mol2_verify_fixed_size(&input_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t output_cells = mol2_table_slice_by_index(&otx_start->cur, 1);
+  CHECK2(mol2_verify_fixed_size(&output_cells, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t cell_deps = mol2_table_slice_by_index(&otx_start->cur, 2);
+  CHECK2(mol2_verify_fixed_size(&cell_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+  mol2_cursor_t header_deps = mol2_table_slice_by_index(&otx_start->cur, 3);
+  CHECK2(mol2_verify_fixed_size(&header_deps, MOL2_NUM_T_SIZE) == MOL2_OK,
+         MOL2_ERR_DATA);
+exit:
+  return err;
 }
 
 int get_union_id(mol2_cursor_t *cur, uint32_t *union_id) {
