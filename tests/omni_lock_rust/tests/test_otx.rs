@@ -1004,7 +1004,7 @@ fn generate_otx_a4_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core
     tx.as_advanced_builder().set_witnesses(witnesses).build()
 }
 
-// Failed: None header
+// Failed: None header and otx->header_deps not zero
 fn generate_otx_a5_fail(dl: &mut Resource, px: &mut Pickaxer) -> ckb_types::core::TransactionView {
     let tx = generate_otx_a0(dl, px);
     tx.as_advanced_builder().set_header_deps(vec![]).build()
