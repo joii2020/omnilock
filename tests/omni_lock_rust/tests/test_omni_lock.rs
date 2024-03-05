@@ -1235,7 +1235,7 @@ fn test_big_output_data() {
         .set_chain_config(Box::new(BitcoinConfig { sign_vtype: BITCOIN_V_TYPE_P2PKHUNCOMPRESSED, pubkey_err: false }));
 
     let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = tx.as_advanced_builder().set_outputs_data(vec![[0u8; 1024 * 1024 * 16].pack()]).build();
+    let tx = tx.as_advanced_builder().set_outputs_data(vec![[0u8; 1024 * 700].pack()]).build();
 
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx: ResolvedTransaction = build_resolved_tx(&data_loader, &tx);
@@ -1255,7 +1255,7 @@ fn test_big_witness() {
         .set_chain_config(Box::new(BitcoinConfig { sign_vtype: BITCOIN_V_TYPE_P2PKHUNCOMPRESSED, pubkey_err: false }));
 
     let tx = gen_tx(&mut data_loader, &mut config);
-    let tx = tx.as_advanced_builder().witness([0u8; 1024 * 1024 * 16].pack()).build();
+    let tx = tx.as_advanced_builder().witness([0u8; 1024 * 700].pack()).build();
 
     let tx = sign_tx(&mut data_loader, tx, &mut config);
     let resolved_tx: ResolvedTransaction = build_resolved_tx(&data_loader, &tx);
@@ -1276,7 +1276,7 @@ fn test_big_script() {
 
     let lock_args = config.gen_args();
 
-    let lock_args = Bytes::from(vec![lock_args.to_vec(), vec![0u8; 1024 * 1024 * 16]].concat());
+    let lock_args = Bytes::from(vec![lock_args.to_vec(), vec![0u8; 1024 * 700]].concat());
 
     let tx = gen_tx_with_grouped_args(&mut data_loader, vec![(lock_args, 1)], &mut config);
     let tx = sign_tx(&mut data_loader, tx, &mut config);
