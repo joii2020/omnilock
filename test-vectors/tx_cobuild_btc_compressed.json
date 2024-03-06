@@ -6,7 +6,7 @@
                     "dep_type": "code",
                     "out_point": {
                         "index": "0x0",
-                        "tx_hash": "0x829ebae400094c097774818338877991bf01f0a2061fb398e926cc86ec82cf2d"
+                        "tx_hash": "0x146b17fff1c01825cd3197f4bcf862c171510e1d9505f51e902301a0337619e7"
                     }
                 },
                 "data": "0x{{ data ../build/omni_lock }}",
@@ -26,33 +26,13 @@
                     "dep_type": "code",
                     "out_point": {
                         "index": "0x0",
-                        "tx_hash": "0xa0853d07a9fdce7f8904284229cab8faf23f544316b99d6d576acac853fb1409"
+                        "tx_hash": "0x088d6fea298bc2f464f141a6f129dd91e61496b318ad364080ceed140be5dddf"
                     }
                 },
                 "data": "0x{{ data ../build/always_success }}",
                 "header": null,
                 "output": {
                     "capacity": "0x1093d9c800",
-                    "lock": {
-                        "args": "0x",
-                        "code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                        "hash_type": "data"
-                    },
-                    "type": null
-                }
-            },
-            {
-                "cell_dep": {
-                    "dep_type": "code",
-                    "out_point": {
-                        "index": "0x0",
-                        "tx_hash": "0x5aefa60b9cc38b78cc80e7478da8347bc0f7b9ad7a4433fd9b4ce8fd25244475"
-                    }
-                },
-                "data": "0x{{ data ../build/secp256k1_data }}",
-                "header": null,
-                "output": {
-                    "capacity": "0x2faf080000",
                     "lock": {
                         "args": "0x",
                         "code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -95,14 +75,14 @@
                 "input": {
                     "previous_output": {
                         "index": "0x0",
-                        "tx_hash": "0x62e24294d4a77c3b558ef06ce67847518cd893e26eeb0820b13be779536ba231"
+                        "tx_hash": "0xaa6f2a459a8c962baab66ebf67cc35d8fdecee22b5be130d5fb62ada8b3fdf54"
                     },
                     "since": "0x0"
                 },
                 "output": {
                     "capacity": "0x2a",
                     "lock": {
-                        "args": "0x04d63602213c0d493c15fcf7d897b59d7c3348ee7d00",
+                        "args": "0x0470781b76897c0edd4aa5057bea9a73ea185a3b2000",
                         "code_hash": "0xce6b8f2ba48b3ed6d84a851daad2c0bd28a084c6c31a6943a3f39cbb4d48df10",
                         "hash_type": "data1"
                     },
@@ -117,21 +97,14 @@
                 "dep_type": "code",
                 "out_point": {
                     "index": "0x0",
-                    "tx_hash": "0x829ebae400094c097774818338877991bf01f0a2061fb398e926cc86ec82cf2d"
+                    "tx_hash": "0x146b17fff1c01825cd3197f4bcf862c171510e1d9505f51e902301a0337619e7"
                 }
             },
             {
                 "dep_type": "code",
                 "out_point": {
                     "index": "0x0",
-                    "tx_hash": "0xa0853d07a9fdce7f8904284229cab8faf23f544316b99d6d576acac853fb1409"
-                }
-            },
-            {
-                "dep_type": "code",
-                "out_point": {
-                    "index": "0x0",
-                    "tx_hash": "0x5aefa60b9cc38b78cc80e7478da8347bc0f7b9ad7a4433fd9b4ce8fd25244475"
+                    "tx_hash": "0x088d6fea298bc2f464f141a6f129dd91e61496b318ad364080ceed140be5dddf"
                 }
             },
             {
@@ -147,7 +120,7 @@
             {
                 "previous_output": {
                     "index": "0x0",
-                    "tx_hash": "0x62e24294d4a77c3b558ef06ce67847518cd893e26eeb0820b13be779536ba231"
+                    "tx_hash": "0xaa6f2a459a8c962baab66ebf67cc35d8fdecee22b5be130d5fb62ada8b3fdf54"
                 },
                 "since": "0x0"
             }
@@ -168,7 +141,7 @@
         ],
         "version": "0x0",
         "witnesses": [
-            "0x010000ff720000000c000000180000000c00000008000000040000005600000000550000001000000055000000550000004100000020421ad53d86f969f1b1262827540d2c062dedd8b8ddc113833ee1a4c48504a4a45a5063cb4ebdd958cec03e266c58cb9da200731d1d8bfe1aaea0e4da0e47bc39"
+            "0x010000ff720000000c000000180000000c00000008000000040000005600000000550000001000000055000000550000004100000020da699152a6b45d3aac5cd80e23ae808563e91f34edeb8daba6ab2cca6e872ff646401ce75f83f14a427ee23136fdab775a181d485c87ef41677558778a0dd449"
         ]
     }
 }
