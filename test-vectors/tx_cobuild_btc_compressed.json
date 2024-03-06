@@ -9,7 +9,7 @@
                         "tx_hash": "0x829ebae400094c097774818338877991bf01f0a2061fb398e926cc86ec82cf2d"
                     }
                 },
-                "data": "0x{{ data ../../build/omni_lock }}",
+                "data": "0x{{ data ../build/omni_lock }}",
                 "header": null,
                 "output": {
                     "capacity": "0xb6d48c1c800",
@@ -29,7 +29,7 @@
                         "tx_hash": "0xa0853d07a9fdce7f8904284229cab8faf23f544316b99d6d576acac853fb1409"
                     }
                 },
-                "data": "0x{{ data ../../build/always_success }}",
+                "data": "0x{{ data ../build/always_success }}",
                 "header": null,
                 "output": {
                     "capacity": "0x1093d9c800",
@@ -49,7 +49,7 @@
                         "tx_hash": "0x5aefa60b9cc38b78cc80e7478da8347bc0f7b9ad7a4433fd9b4ce8fd25244475"
                     }
                 },
-                "data": "0x{{ data ../../build/secp256k1_data }}",
+                "data": "0x{{ data ../build/secp256k1_data }}",
                 "header": null,
                 "output": {
                     "capacity": "0x2faf080000",
@@ -69,7 +69,7 @@
                         "tx_hash": "0xa638f65f650bdac13bf91134ed7eec8feded1dac5e6add9e26cf658b2a693066"
                     }
                 },
-                "data": "0x{{ data ../../build/validate_signature_rsa }}",
+                "data": "0x{{ data ../build/validate_signature_rsa }}",
                 "header": null,
                 "output": {
                     "capacity": "0x11510",
