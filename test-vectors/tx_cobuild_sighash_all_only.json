@@ -6,13 +6,13 @@
                     "dep_type": "code",
                     "out_point": {
                         "index": "0x0",
-                        "tx_hash": "0x829ebae400094c097774818338877991bf01f0a2061fb398e926cc86ec82cf2d"
+                        "tx_hash": "0x08d304cbe950c60d9b3524c894b4a4f5950198437cc6a0a905d7c3b4ccaff93c"
                     }
                 },
-                "data": "0x{{ data ../../build/omni_lock }}",
+                "data": "0x{{ data ../build/omni_lock }}",
                 "header": null,
                 "output": {
-                    "capacity": "0xb6d48c1c800",
+                    "capacity": "0xb6da81fd800",
                     "lock": {
                         "args": "0x",
                         "code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -26,13 +26,13 @@
                     "dep_type": "code",
                     "out_point": {
                         "index": "0x0",
-                        "tx_hash": "0xa0853d07a9fdce7f8904284229cab8faf23f544316b99d6d576acac853fb1409"
+                        "tx_hash": "0xef5f4b7aeec4d6f07506a4a0018ac05b8866bb3a796961f9c014404314fd642a"
                     }
                 },
-                "data": "0x{{ data ../../build/always_success }}",
+                "data": "0x{{ data ../build/always_success }}",
                 "header": null,
                 "output": {
-                    "capacity": "0x1093d9c800",
+                    "capacity": "0x10f337d800",
                     "lock": {
                         "args": "0x",
                         "code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -46,10 +46,10 @@
                     "dep_type": "code",
                     "out_point": {
                         "index": "0x0",
-                        "tx_hash": "0x5aefa60b9cc38b78cc80e7478da8347bc0f7b9ad7a4433fd9b4ce8fd25244475"
+                        "tx_hash": "0x2ac70428324f5ab82c863022ddc4ee3016ecb0a3f18886032275b94621901d7d"
                     }
                 },
-                "data": "0x{{ data ../../build/secp256k1_data }}",
+                "data": "0x{{ data ../build/secp256k1_data }}",
                 "header": null,
                 "output": {
                     "capacity": "0x2faf080000",
@@ -69,13 +69,13 @@
                         "tx_hash": "0xa638f65f650bdac13bf91134ed7eec8feded1dac5e6add9e26cf658b2a693066"
                     }
                 },
-                "data": "0x{{ data ../../build/validate_signature_rsa }}",
+                "data": "0x{{ data ../build/validate_signature_rsa }}",
                 "header": null,
                 "output": {
                     "capacity": "0x11510",
                     "lock": {
                         "args": "0x",
-                        "code_hash": "0x60fc4b3cfd4ca5977d0749238f1301e99929b5665bb8eb9160227e7b41b48ccb",
+                        "code_hash": "0x77e167246b8b11e9dfaa1f30813623c0ddaae325c523bab748a7d5e284237edd",
                         "hash_type": "data1"
                     },
                     "type": {
@@ -95,15 +95,15 @@
                 "input": {
                     "previous_output": {
                         "index": "0x0",
-                        "tx_hash": "0x62e24294d4a77c3b558ef06ce67847518cd893e26eeb0820b13be779536ba231"
+                        "tx_hash": "0x28df863abe0a90fe28cac9f932bc69ddcfd6f05a7cf24f9cacaffdfb016a5ead"
                     },
                     "since": "0x0"
                 },
                 "output": {
                     "capacity": "0x2a",
                     "lock": {
-                        "args": "0x04d63602213c0d493c15fcf7d897b59d7c3348ee7d00",
-                        "code_hash": "0xce6b8f2ba48b3ed6d84a851daad2c0bd28a084c6c31a6943a3f39cbb4d48df10",
+                        "args": "0x0431ef569c6a5fc16b76aab9e9e3ea00fce0176b1300",
+                        "code_hash": "0xf9cc19f9a6dac796a384ea9f9ffda68576cbca05e5602938623542a9a5d58e15",
                         "hash_type": "data1"
                     },
                     "type": null
@@ -117,21 +117,21 @@
                 "dep_type": "code",
                 "out_point": {
                     "index": "0x0",
-                    "tx_hash": "0x829ebae400094c097774818338877991bf01f0a2061fb398e926cc86ec82cf2d"
+                    "tx_hash": "0x08d304cbe950c60d9b3524c894b4a4f5950198437cc6a0a905d7c3b4ccaff93c"
                 }
             },
             {
                 "dep_type": "code",
                 "out_point": {
                     "index": "0x0",
-                    "tx_hash": "0xa0853d07a9fdce7f8904284229cab8faf23f544316b99d6d576acac853fb1409"
+                    "tx_hash": "0xef5f4b7aeec4d6f07506a4a0018ac05b8866bb3a796961f9c014404314fd642a"
                 }
             },
             {
                 "dep_type": "code",
                 "out_point": {
                     "index": "0x0",
-                    "tx_hash": "0x5aefa60b9cc38b78cc80e7478da8347bc0f7b9ad7a4433fd9b4ce8fd25244475"
+                    "tx_hash": "0x2ac70428324f5ab82c863022ddc4ee3016ecb0a3f18886032275b94621901d7d"
                 }
             },
             {
@@ -147,7 +147,7 @@
             {
                 "previous_output": {
                     "index": "0x0",
-                    "tx_hash": "0x62e24294d4a77c3b558ef06ce67847518cd893e26eeb0820b13be779536ba231"
+                    "tx_hash": "0x28df863abe0a90fe28cac9f932bc69ddcfd6f05a7cf24f9cacaffdfb016a5ead"
                 },
                 "since": "0x0"
             }
@@ -168,7 +168,7 @@
         ],
         "version": "0x0",
         "witnesses": [
-            "0x010000ff720000000c000000180000000c00000008000000040000005600000000550000001000000055000000550000004100000020421ad53d86f969f1b1262827540d2c062dedd8b8ddc113833ee1a4c48504a4a45a5063cb4ebdd958cec03e266c58cb9da200731d1d8bfe1aaea0e4da0e47bc39"
+            "0x020000ff62000000080000005600000000550000001000000055000000550000004100000020a27cd7b139a718f54afcc4773dc8120e501cbd22028d4d3fa0da7c52b954edda14a2bbf3a0685a4eca0ad02b864960d5c06b009ec370d596c820caee522c83c9"
         ]
     }
 }
