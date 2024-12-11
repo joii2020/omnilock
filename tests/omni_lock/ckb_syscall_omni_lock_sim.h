@@ -9,7 +9,7 @@
 #define ASSERT assert
 #include <blake2b.h>
 
-#include "include/secp256k1.h"
+// #include "include/secp256k1.h"
 #include "include/secp256k1_recovery.h"
 #include "omni_lock_mol.h"
 #include "xudt_rce_mol.h"
