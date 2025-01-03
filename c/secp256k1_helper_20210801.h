@@ -21,6 +21,8 @@
 secp256k1_ge_storage* secp256k1_pre_g = NULL;
 secp256k1_ge_storage* secp256k1_pre_g_128 = NULL;
 #undef SECP256K1_NO_BUILD
+#define COMB_BLOCKS 1
+#define COMB_TEETH 1
 #include <secp256k1.c>
 #include "modules/recovery/main_impl.h"
 const secp256k1_ge_storage secp256k1_ecmult_gen_prec_table[COMB_BLOCKS]
